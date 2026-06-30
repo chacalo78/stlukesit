@@ -41,7 +41,7 @@ function Login() {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="St. Luke's College"
             style={{
             width: '170px',

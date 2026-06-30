@@ -57,7 +57,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
         {/* Logo */}
         <div style={{ padding: '16px 14px', borderBottom: '1px solid #2a3f2c', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="St. Luke's"
             style={{ width: '48px', height: 'auto', flexShrink: 0 }}
           />
