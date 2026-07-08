@@ -16,7 +16,7 @@ function Login() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(`DEBUG: ${error.message} (status ${error.status})`)
+      setError('Email o contraseña incorrectos')
       setLoading(false)
     }
   }
@@ -55,9 +55,6 @@ function Login() {
           </h1>
           <p style={{ color: '#5c7a5e', fontSize: '12px' }}>
           Sistema de IT
-          </p>
-          <p style={{ color: '#5c7a5e', fontSize: '10px', marginTop: '6px' }}>
-            BUILD-MARKER-2026-07-08-13-13-UTC
           </p>
         </div>
 
