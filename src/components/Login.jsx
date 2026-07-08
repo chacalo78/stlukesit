@@ -56,6 +56,9 @@ function Login() {
           <p style={{ color: '#5c7a5e', fontSize: '12px' }}>
           Sistema de IT
           </p>
+          <p style={{ color: '#5c7a5e', fontSize: '10px', marginTop: '6px' }}>
+            BUILD-MARKER-2026-07-08-13-13-UTC
+          </p>
         </div>
 
         <div style={{
