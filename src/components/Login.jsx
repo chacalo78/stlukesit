@@ -1,10 +1,35 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
 
+const inputStyle = {
+  width: '100%',
+  padding: '11px 14px',
+  background: '#1c2e1e',
+  border: '1px solid #2a3f2c',
+  borderRadius: '6px',
+  color: '#e8f0e8',
+  fontSize: '14px',
+  boxSizing: 'border-box'
+}
+
+const buttonStyle = {
+  width: '100%',
+  padding: '12px',
+  background: 'linear-gradient(135deg, #c8a44a, #a8842a)',
+  color: '#1a1a0a',
+  border: 'none',
+  borderRadius: '6px',
+  fontSize: '14px',
+  fontWeight: '700',
+  letterSpacing: '.3px'
+}
+
 function Login() {
+  const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
@@ -19,6 +44,31 @@ function Login() {
       setError('Email o contraseña incorrectos')
       setLoading(false)
     }
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError('Ingresá tu email')
+      return
+    }
+    setLoading(true)
+    setError('')
+    setInfo('')
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`
+    })
+    setLoading(false)
+    if (error) {
+      setError('No pudimos enviar el correo. Intentá de nuevo.')
+    } else {
+      setInfo('Si el email existe, te enviamos un enlace para recuperar tu contraseña.')
+    }
+  }
+
+  function switchMode(newMode) {
+    setMode(newMode)
+    setError('')
+    setInfo('')
   }
 
   return (
@@ -73,41 +123,26 @@ function Login() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="tu@email.com"
-            style={{
-              width: '100%',
-              padding: '11px 14px',
-              background: '#1c2e1e',
-              border: '1px solid #2a3f2c',
-              borderRadius: '6px',
-              color: '#e8f0e8',
-              fontSize: '14px',
-              boxSizing: 'border-box'
-            }}
+            onKeyDown={e => e.key === 'Enter' && (mode === 'login' ? handleLogin() : handleForgotPassword())}
+            style={inputStyle}
           />
         </div>
 
-        <div style={{ marginBottom: '14px' }}>
-          <label style={{ fontSize: '12px', color: '#9ab89c', display: 'block', marginBottom: '6px' }}>
-            Contraseña
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-            style={{
-              width: '100%',
-              padding: '11px 14px',
-              background: '#1c2e1e',
-              border: '1px solid #2a3f2c',
-              borderRadius: '6px',
-              color: '#e8f0e8',
-              fontSize: '14px',
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
+        {mode === 'login' && (
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '12px', color: '#9ab89c', display: 'block', marginBottom: '6px' }}>
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              style={inputStyle}
+            />
+          </div>
+        )}
 
         {error && (
           <div style={{
@@ -123,25 +158,71 @@ function Login() {
           </div>
         )}
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: 'linear-gradient(135deg, #c8a44a, #a8842a)',
-            color: '#1a1a0a',
-            border: 'none',
+        {info && (
+          <div style={{
+            background: 'rgba(200,164,74,.1)',
+            border: '1px solid rgba(200,164,74,.3)',
+            color: '#c8a44a',
+            padding: '10px 14px',
             borderRadius: '6px',
-            fontSize: '14px',
-            fontWeight: '700',
-            cursor: loading ? 'default' : 'pointer',
-            opacity: loading ? 0.5 : 1,
-            letterSpacing: '.3px'
-          }}
-        >
-          {loading ? 'Ingresando...' : 'Ingresar'}
-        </button>
+            fontSize: '13px',
+            marginBottom: '12px'
+          }}>
+            {info}
+          </div>
+        )}
+
+        {mode === 'login' ? (
+          <>
+            <button
+              onClick={handleLogin}
+              disabled={loading}
+              style={{ ...buttonStyle, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.5 : 1 }}
+            >
+              {loading ? 'Ingresando...' : 'Ingresar'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button
+                onClick={() => switchMode('forgot')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ab89c',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={handleForgotPassword}
+              disabled={loading}
+              style={{ ...buttonStyle, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.5 : 1 }}
+            >
+              {loading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <button
+                onClick={() => switchMode('login')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9ab89c',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Volver a ingresar
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

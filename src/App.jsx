@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import Login from './components/Login'
+import UpdatePassword from './components/UpdatePassword'
 import Layout from './components/Layout'
 import Dashboard from './components/Dashboard'
 import Equipos from './components/Equipos'
@@ -12,6 +13,7 @@ function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
   const { role, nombre, sede, isAdmin, isCoordinador, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
@@ -20,7 +22,10 @@ function App() {
       setLoading(false)
     })
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true)
+      }
       setSession(session)
     })
   }, [])
@@ -37,6 +42,8 @@ function App() {
       Cargando...
     </div>
   )
+
+  if (passwordRecovery) return <UpdatePassword onDone={() => setPasswordRecovery(false)} />
 
   if (!session) return <Login />
 
