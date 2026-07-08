@@ -16,7 +16,7 @@ function Login() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError('Email o contraseña incorrectos')
+      setError(`DEBUG: ${error.message} (status ${error.status})`)
       setLoading(false)
     }
   }
