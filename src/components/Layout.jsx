@@ -93,31 +93,6 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           ))}
         </div>
 
-        {/* Usuario */}
-        <div style={{ marginTop: 'auto', padding: '12px 14px', borderTop: '1px solid #2a3f2c' }}>
-          <div style={{ marginBottom: '6px' }}>
-            <span style={{
-              display: 'inline-block', padding: '2px 8px',
-              background: rc.bg, color: rc.color,
-              borderRadius: '20px', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'
-            }}>
-              {ROLE_LABELS[role] || ROLE_LABELS.usuario}{sede ? ` · ${sede}` : ''}
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', color: '#5c7a5e', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {nombre || session.user.email}
-          </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            style={{
-              width: '100%', padding: '7px', background: 'transparent',
-              border: '1px solid #3a5a3d', borderRadius: '6px',
-              color: '#9ab89c', fontSize: '12px', cursor: 'pointer'
-            }}
-          >
-            Cerrar sesión
-          </button>
-        </div>
       </div>
 
       {/* Contenido principal */}
@@ -130,6 +105,34 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
             {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', usuarios: 'Usuarios' }[currentSection]}
+          </div>
+
+          {/* Usuario */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ marginBottom: '3px' }}>
+                <span style={{
+                  display: 'inline-block', padding: '2px 8px',
+                  background: rc.bg, color: rc.color,
+                  borderRadius: '20px', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'
+                }}>
+                  {ROLE_LABELS[role] || ROLE_LABELS.usuario}{sede ? ` · ${sede}` : ''}
+                </span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#9ab89c', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {nombre || session.user.email}
+              </div>
+            </div>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              style={{
+                padding: '7px 12px', background: 'transparent', flexShrink: 0,
+                border: '1px solid #3a5a3d', borderRadius: '6px',
+                color: '#9ab89c', fontSize: '12px', cursor: 'pointer'
+              }}
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
 
