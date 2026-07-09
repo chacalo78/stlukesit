@@ -27,14 +27,22 @@ const icons = {
       <path d="M7 16l4-4 4 4 4-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  usuarios: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
+      <circle cx="9" cy="8" r="3.5" strokeWidth="2" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeWidth="2" strokeLinecap="round" />
+      <path d="M16.5 6.5a3.5 3.5 0 0 1 0 7M21 20c0-2.8-2-5.1-4.7-5.8" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, isAdmin }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'equipos', label: 'Equipos' },
     { id: 'historial', label: 'Historial' },
     { id: 'reportes', label: 'Reportes' },
+    ...(isAdmin ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
   ]
 
   const roleLabels = { admin: 'ADMIN', coordinador: 'COORDINADOR', viewer: 'VIEWER' }
@@ -126,7 +134,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', usuarios: 'Usuarios' }[currentSection]}
           </div>
         </div>
 

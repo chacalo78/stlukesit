@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard'
 import Equipos from './components/Equipos'
 import Historial from './components/Historial'
 import Reportes from './components/Reportes'
+import Usuarios from './components/Usuarios'
 import useUserRole from './hooks/useUserRole'
 
 function App() {
@@ -53,6 +54,9 @@ function App() {
       case 'equipos': return <Equipos isAdmin={isAdmin} isCoordinador={isCoordinador} currentUserNombre={nombre} currentUserSede={sede} />
       case 'historial': return <Historial />
       case 'reportes': return <Reportes />
+      case 'usuarios': return isAdmin
+        ? <Usuarios currentUserEmail={session.user.email} />
+        : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
       default: return (
         <div style={{ color: '#9ab89c' }}>
           Sección en construcción...
@@ -69,6 +73,7 @@ function App() {
       sede={sede}
       currentSection={currentSection}
       onSectionChange={setCurrentSection}
+      isAdmin={isAdmin}
     >
       {renderSection()}
     </Layout>
