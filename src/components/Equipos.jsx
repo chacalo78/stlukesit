@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
+import { ESTADOS_EQUIPO, SEDES } from '../constants'
 
 const PAGE_SIZE = 15
 
@@ -122,6 +123,7 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
       'Requiere atención': { bg: 'rgba(249,115,22,.15)', color: '#f97316' },
       'De baja': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
       'En depósito': { bg: 'rgba(155,109,255,.15)', color: '#9b6dff' },
+      'Prestado': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
     }
     const e = estilos[estado] || { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
     return (
@@ -202,11 +204,11 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
         </select>
         <select style={selectStyle} value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
           <option value="">Todos los estados</option>
-          {['Activo', 'En reparación', 'Requiere atención', 'De baja', 'En depósito'].map(t => <option key={t}>{t}</option>)}
+          {ESTADOS_EQUIPO.map(t => <option key={t}>{t}</option>)}
         </select>
         <select style={selectStyle} value={filtros.sede} onChange={e => setFiltros(f => ({ ...f, sede: e.target.value }))}>
           <option value="">Todas las sedes</option>
-          {['Nordelta', 'HSM', 'Olivos'].map(t => <option key={t}>{t}</option>)}
+          {SEDES.map(t => <option key={t}>{t}</option>)}
         </select>
       </div>
 

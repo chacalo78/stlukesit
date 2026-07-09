@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard'
 import Equipos from './components/Equipos'
 import Historial from './components/Historial'
 import Reportes from './components/Reportes'
+import Prestamos from './components/Prestamos'
 import Usuarios from './components/Usuarios'
 import useUserRole from './hooks/useUserRole'
 
@@ -54,6 +55,7 @@ function App() {
       case 'equipos': return <Equipos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserNombre={nombre} currentUserSede={sede} />
       case 'historial': return <Historial />
       case 'reportes': return <Reportes />
+      case 'prestamos': return <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />
         : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>

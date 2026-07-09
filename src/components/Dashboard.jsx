@@ -5,6 +5,7 @@ function Dashboard() {
   const [equipos, setEquipos] = useState([])
   const [movimientos, setMovimientos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
+  const [prestamosActivos, setPrestamosActivos] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,9 +23,14 @@ function Dashboard() {
         .select('*')
         .order('fecha', { ascending: false })
         .limit(500)
+      const { data: prestamosData } = await supabase
+        .from('prestamos')
+        .select('*')
+        .is('fecha_devolucion_real', null)
       setEquipos(equiposData || [])
       setMovimientos(movsData || [])
       setTodosMovimientos(allMovsData || [])
+      setPrestamosActivos(prestamosData || [])
       setLoading(false)
     }
     cargarDatos()
@@ -41,6 +47,9 @@ function Dashboard() {
   const enDeposito = enDepositoList.length
   const requiereAtencionList = equipos.filter(e => e.estado === 'Requiere atención')
   const requiereAtencion = requiereAtencionList.length
+  const hoy = new Date().toISOString().slice(0, 10)
+  const prestamosVencidosList = prestamosActivos.filter(p => p.fecha_devolucion_estimada < hoy)
+  const prestamosVencidos = prestamosVencidosList.length
 
   const stats = [
     { label: 'Total equipos', value: total, color: '#c8a44a' },
@@ -49,6 +58,7 @@ function Dashboard() {
     { label: 'De baja', value: deBaja, color: '#e25555' },
     { label: 'En depósito', value: enDeposito, color: '#9b6dff' },
     { label: 'Requiere atención', value: requiereAtencion, color: '#f97316' },
+    { label: 'Préstamos vencidos', value: prestamosVencidos, color: '#e25555' },
   ]
 
   const badgeMovimiento = (tipo) => {
@@ -57,6 +67,8 @@ function Dashboard() {
       'Baja': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
       'Modificación': { bg: 'rgba(200,164,74,.15)', color: '#c8a44a' },
       'Traslado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
+      'Préstamo': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
+      'Devolución': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
     }
     const c = colores[tipo] || { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
     return (
@@ -173,7 +185,17 @@ function Dashboard() {
       detalle: 'Estos casos llevan tiempo sin resolverse. Priorizá su revisión antes que los más recientes.'
     })
   }
-  // 4. Equipos con datos incompletos (ficha técnica sin completar)
+  // 4. Préstamos vencidos (fecha de devolución estimada ya pasó)
+  if (prestamosVencidos > 0) {
+    sugerencias.push({
+      icono: '⏰',
+      color: '#e25555',
+      titulo: `${prestamosVencidos} préstamo${prestamosVencidos > 1 ? 's' : ''} vencido${prestamosVencidos > 1 ? 's' : ''}`,
+      detalle: 'Hay equipos prestados cuya fecha de devolución estimada ya pasó. Revisá la sección Préstamos para hacer seguimiento.'
+    })
+  }
+
+  // 5. Equipos con datos incompletos (ficha técnica sin completar)
   const datosIncompletos = equipos.filter(e =>
     (e.tipo === 'PC' || e.tipo === 'Notebook') &&
     e.estado !== 'De baja' &&

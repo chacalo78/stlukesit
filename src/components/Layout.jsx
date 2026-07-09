@@ -35,6 +35,12 @@ const icons = {
       <path d="M16.5 6.5a3.5 3.5 0 0 1 0 7M21 20c0-2.8-2-5.1-4.7-5.8" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
+  prestamos: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M4 4v6h6M20 20v-6h-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 15a8 8 0 0 0 14 3.5M19.5 9a8 8 0 0 0-14-3.5" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
 }
 
 function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers }) {
@@ -43,6 +49,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
     { id: 'equipos', label: 'Equipos' },
     { id: 'historial', label: 'Historial' },
     { id: 'reportes', label: 'Reportes' },
+    { id: 'prestamos', label: 'Préstamos' },
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
   ]
 
@@ -104,7 +111,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', usuarios: 'Usuarios' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios' }[currentSection]}
           </div>
 
           {/* Usuario */}

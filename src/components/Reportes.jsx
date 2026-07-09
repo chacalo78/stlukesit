@@ -42,7 +42,7 @@ function Reportes() {
   equipos.forEach(e => { tipos[e.tipo] = (tipos[e.tipo] || 0) + 1 })
 
   // Por estado
-  const estados = { 'Activo': 0, 'En reparación': 0, 'Requiere atención': 0, 'En depósito': 0 }
+  const estados = { 'Activo': 0, 'En reparación': 0, 'Requiere atención': 0, 'En depósito': 0, 'Prestado': 0 }
   equipos.forEach(e => { if (estados[e.estado] !== undefined) estados[e.estado]++ })
 
   // Por sede

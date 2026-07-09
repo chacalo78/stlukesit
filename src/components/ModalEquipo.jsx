@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ESTADOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 function ModalEquipo({ equipo, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -108,7 +109,7 @@ function ModalEquipo({ equipo, onClose, onSave }) {
             <div>
               <label style={labelStyle}>Estado</label>
               <select style={inputStyle} value={form.estado} onChange={e => set('estado', e.target.value)}>
-                {['Activo', 'En reparación', 'Requiere atención', 'De baja', 'En depósito'].map(t => <option key={t}>{t}</option>)}
+                {ESTADOS_EQUIPO.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
@@ -165,14 +166,14 @@ function ModalEquipo({ equipo, onClose, onSave }) {
               <label style={labelStyle}>Sede</label>
               <select style={inputStyle} value={form.ubicacion || ''} onChange={e => set('ubicacion', e.target.value)}>
                 <option value="">Seleccioná...</option>
-                {['Nordelta', 'HSM', 'Olivos'].map(t => <option key={t}>{t}</option>)}
+                {SEDES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label style={labelStyle}>Sector</label>
               <select style={inputStyle} value={form.sector || ''} onChange={e => set('sector', e.target.value)}>
                 <option value="">Seleccioná...</option>
-                {['Nivel Inicial', 'Nivel Primario', 'Nivel Secundario', 'Administración', 'IT', 'Intendencia', 'Enfermería', 'Carrito', 'IT Lab Primario', 'IT Lab Secundario', 'Mini IT Lab', 'Secretaría Académica', 'Preceptoría', 'PVAD', 'SST', 'EF'].map(t => <option key={t}>{t}</option>)}
+                {SECTORES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
