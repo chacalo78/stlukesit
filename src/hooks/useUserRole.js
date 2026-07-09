@@ -19,7 +19,8 @@ function useUserRole(user) {
         .select('*')
         .eq('email', user.email)
         .single()
-      setRole(data?.rol || 'viewer')
+      const rolCrudo = data?.rol || 'usuario'
+      setRole(rolCrudo === 'viewer' ? 'usuario' : rolCrudo)
       setNombre(data?.nombre || user.email)
       setSede(data?.sede || null)
       setLoading(false)
@@ -27,14 +28,23 @@ function useUserRole(user) {
     cargarRol()
   }, [user])
 
+  const isSuperAdmin = role === 'super_admin'
+  const isAdmin = role === 'admin'
+
   return {
     role,
     nombre,
     sede,
     loading,
-    isAdmin: role === 'admin',
+    isSuperAdmin,
+    isAdmin,
     isCoordinador: role === 'coordinador',
-    isViewer: role === 'viewer'
+    isUsuario: role === 'usuario',
+    // Administrador y Super Administrador comparten permisos operativos
+    // (equipos, reportes, gestionar Usuarios); solo super_admin puede
+    // administrar cuentas de Administrador/Super Administrador.
+    canManageEquipos: isSuperAdmin || isAdmin || role === 'coordinador',
+    canManageUsers: isSuperAdmin || isAdmin
   }
 }
 

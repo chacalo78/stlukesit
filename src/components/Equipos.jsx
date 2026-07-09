@@ -4,7 +4,7 @@ import ModalEquipo from './ModalEquipo'
 
 const PAGE_SIZE = 15
 
-function Equipos({ isAdmin, isCoordinador, currentUserNombre, currentUserSede }) {
+function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -13,8 +13,6 @@ function Equipos({ isAdmin, isCoordinador, currentUserNombre, currentUserSede })
   const [modalOpen, setModalOpen] = useState(false)
   const [equipoEditando, setEquipoEditando] = useState(null)
   const [toast, setToast] = useState(null)
-
-  const puedeEditar = isAdmin || isCoordinador
 
   useEffect(() => { cargarEquipos() }, [])
   useEffect(() => { aplicarFiltros() }, [equipos, filtros])

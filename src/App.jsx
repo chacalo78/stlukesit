@@ -15,7 +15,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const { role, nombre, sede, isAdmin, isCoordinador, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -51,11 +51,11 @@ function App() {
   const renderSection = () => {
     switch (currentSection) {
       case 'dashboard': return <Dashboard />
-      case 'equipos': return <Equipos isAdmin={isAdmin} isCoordinador={isCoordinador} currentUserNombre={nombre} currentUserSede={sede} />
+      case 'equipos': return <Equipos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserNombre={nombre} currentUserSede={sede} />
       case 'historial': return <Historial />
       case 'reportes': return <Reportes />
-      case 'usuarios': return isAdmin
-        ? <Usuarios currentUserEmail={session.user.email} />
+      case 'usuarios': return canManageUsers
+        ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />
         : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
       default: return (
         <div style={{ color: '#9ab89c' }}>
@@ -73,7 +73,7 @@ function App() {
       sede={sede}
       currentSection={currentSection}
       onSectionChange={setCurrentSection}
-      isAdmin={isAdmin}
+      canManageUsers={canManageUsers}
     >
       {renderSection()}
     </Layout>

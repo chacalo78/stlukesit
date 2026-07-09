@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalUsuario from './ModalUsuario'
+import { ROLES, ROLE_LABELS, ROLE_BADGE } from '../roles'
 
-function Usuarios({ currentUserEmail }) {
+const esRolElevado = (rol) => rol === 'admin' || rol === 'super_admin'
+
+function Usuarios({ currentUserEmail, isSuperAdmin }) {
   const [usuarios, setUsuarios] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +52,11 @@ function Usuarios({ currentUserEmail }) {
       return
     }
 
+    if (!isSuperAdmin && (esRolElevado(payload.rol) || (usuarioEditando && esRolElevado(usuarioEditando.rol)))) {
+      showToast('Solo un Super Administrador puede gestionar cuentas de Administrador', 'error')
+      return
+    }
+
     let error
     if (usuarioEditando) {
       const res = await supabase.from('user_roles')
@@ -72,6 +80,10 @@ function Usuarios({ currentUserEmail }) {
       showToast('No podés eliminar tu propio usuario', 'error')
       return
     }
+    if (!isSuperAdmin && esRolElevado(usuario.rol)) {
+      showToast('Solo un Super Administrador puede dar de baja cuentas de Administrador', 'error')
+      return
+    }
     if (!window.confirm(`¿Confirmar baja del usuario "${usuario.nombre || usuario.email}"? Esto quita sus permisos en el sistema (no borra la cuenta de acceso).`)) return
     const { error } = await supabase.from('user_roles').delete().eq('id', usuario.id)
     if (error) { showToast('Error al dar de baja', 'error'); return }
@@ -80,15 +92,10 @@ function Usuarios({ currentUserEmail }) {
   }
 
   const badgeRol = (rol) => {
-    const estilos = {
-      admin: { bg: 'rgba(200,164,74,.2)', color: '#c8a44a' },
-      coordinador: { bg: 'rgba(79,142,247,.2)', color: '#4f8ef7' },
-      viewer: { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
-    }
-    const e = estilos[rol] || estilos.viewer
+    const e = ROLE_BADGE[rol] || ROLE_BADGE.usuario
     return (
       <span style={{ background: e.bg, color: e.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>
-        {rol}
+        {ROLE_LABELS[rol] || ROLE_LABELS.usuario}
       </span>
     )
   }
@@ -162,7 +169,7 @@ function Usuarios({ currentUserEmail }) {
         </div>
         <select style={selectStyle} value={filtros.rol} onChange={e => setFiltros(f => ({ ...f, rol: e.target.value }))}>
           <option value="">Todos los roles</option>
-          {['admin', 'coordinador', 'viewer'].map(r => <option key={r} value={r}>{r}</option>)}
+          {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
         </select>
         <select style={selectStyle} value={filtros.sede} onChange={e => setFiltros(f => ({ ...f, sede: e.target.value }))}>
           <option value="">Todas las sedes</option>
@@ -192,8 +199,14 @@ function Usuarios({ currentUserEmail }) {
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{u.sede || '–'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: '5px' }}>
-                      <button onClick={() => { setUsuarioEditando(u); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
-                      <button onClick={() => handleBaja(u)} style={btnStyle('#e25555')}>Baja</button>
+                      {(isSuperAdmin || !esRolElevado(u.rol)) ? (
+                        <>
+                          <button onClick={() => { setUsuarioEditando(u); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
+                          <button onClick={() => handleBaja(u)} style={btnStyle('#e25555')}>Baja</button>
+                        </>
+                      ) : (
+                        <span style={{ color: '#5c7a5e', fontSize: '11px' }}>Solo Super Admin</span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -215,6 +228,7 @@ function Usuarios({ currentUserEmail }) {
           usuario={usuarioEditando}
           onClose={() => { setModalOpen(false); setUsuarioEditando(null) }}
           onSave={handleSave}
+          canManageAdmins={isSuperAdmin}
         />
       )}
     </div>

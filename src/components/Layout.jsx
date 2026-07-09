@@ -1,4 +1,5 @@
 import { supabase } from '../supabase'
+import { ROLE_LABELS, ROLE_BADGE } from '../roles'
 
 const icons = {
   dashboard: (
@@ -36,22 +37,16 @@ const icons = {
   ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, isAdmin }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'equipos', label: 'Equipos' },
     { id: 'historial', label: 'Historial' },
     { id: 'reportes', label: 'Reportes' },
-    ...(isAdmin ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
+    ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
   ]
 
-  const roleLabels = { admin: 'ADMIN', coordinador: 'COORDINADOR', viewer: 'VIEWER' }
-  const roleColors = {
-    admin: { bg: 'rgba(200,164,74,.2)', color: '#c8a44a' },
-    coordinador: { bg: 'rgba(79,142,247,.2)', color: '#4f8ef7' },
-    viewer: { bg: 'rgba(154,184,156,.1)', color: '#5c7a5e' }
-  }
-  const rc = roleColors[role] || roleColors.viewer
+  const rc = ROLE_BADGE[role] || ROLE_BADGE.usuario
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0f1a10', fontFamily: 'Inter, sans-serif' }}>
@@ -104,9 +99,9 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
             <span style={{
               display: 'inline-block', padding: '2px 8px',
               background: rc.bg, color: rc.color,
-              borderRadius: '20px', fontSize: '10px', fontWeight: '600'
+              borderRadius: '20px', fontSize: '10px', fontWeight: '600', textTransform: 'uppercase'
             }}>
-              {roleLabels[role] || 'VIEWER'}{sede ? ` · ${sede}` : ''}
+              {ROLE_LABELS[role] || ROLE_LABELS.usuario}{sede ? ` · ${sede}` : ''}
             </span>
           </div>
           <div style={{ fontSize: '11px', color: '#5c7a5e', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
+import { ROLE_LABELS } from '../roles'
 
-const ROLES = ['admin', 'coordinador', 'viewer']
 const SEDES = ['Nordelta', 'HSM', 'Olivos']
 
-function ModalUsuario({ usuario, onClose, onSave }) {
+function ModalUsuario({ usuario, onClose, onSave, canManageAdmins }) {
+  const rolesDisponibles = canManageAdmins
+    ? ['super_admin', 'admin', 'coordinador', 'usuario']
+    : ['coordinador', 'usuario']
+
   const [form, setForm] = useState({
     email: '',
     nombre: '',
-    rol: 'viewer',
+    rol: 'usuario',
     sede: ''
   })
 
@@ -79,7 +83,7 @@ function ModalUsuario({ usuario, onClose, onSave }) {
           <div>
             <label style={labelStyle}>Rol *</label>
             <select style={inputStyle} value={form.rol} onChange={e => set('rol', e.target.value)}>
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              {rolesDisponibles.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
             </select>
           </div>
           <div>
