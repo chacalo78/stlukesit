@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { supabase } from '../supabase'
 import { ROLE_LABELS, ROLE_BADGE } from '../roles'
+import ModalCambiarPassword from './ModalCambiarPassword'
 
 const icons = {
   dashboard: (
@@ -44,6 +46,8 @@ const icons = {
 }
 
 function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers }) {
+  const [modalPasswordOpen, setModalPasswordOpen] = useState(false)
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'equipos', label: 'Equipos' },
@@ -131,6 +135,16 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
               </div>
             </div>
             <button
+              onClick={() => setModalPasswordOpen(true)}
+              style={{
+                padding: '7px 12px', background: 'transparent', flexShrink: 0,
+                border: '1px solid #3a5a3d', borderRadius: '6px',
+                color: '#9ab89c', fontSize: '12px', cursor: 'pointer'
+              }}
+            >
+              Cambiar contraseña
+            </button>
+            <button
               onClick={() => supabase.auth.signOut()}
               style={{
                 padding: '7px 12px', background: 'transparent', flexShrink: 0,
@@ -147,6 +161,10 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
         <div style={{ flex: 1, padding: '24px', overflowY: 'auto' }}>
           {children}
         </div>
+
+        {modalPasswordOpen && (
+          <ModalCambiarPassword onClose={() => setModalPasswordOpen(false)} />
+        )}
 
       </div>
     </div>
