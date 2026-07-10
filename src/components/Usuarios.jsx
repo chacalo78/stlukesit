@@ -136,15 +136,6 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
         </div>
       )}
 
-      {/* Aviso */}
-      <div style={{
-        background: 'rgba(200,164,74,.08)', border: '1px solid rgba(200,164,74,.25)',
-        borderRadius: '8px', padding: '10px 14px', marginBottom: '16px',
-        fontSize: '12px', color: '#c8a44a'
-      }}>
-        Esta sección gestiona el rol y la sede de los usuarios dentro del sistema. La cuenta de acceso (email/contraseña) se sigue creando desde el panel de Supabase.
-      </div>
-
       {/* Botón nuevo usuario */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
         <button
