@@ -34,7 +34,7 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
     const { q, tipo, estado, sede, sector } = filtros
     const term = q.toLowerCase()
     const result = equipos.filter(e => {
-      const mq = !term || [e.numero_inventario, e.id_red, e.marca, e.modelo, e.responsable, e.ubicacion, e.numero_serie, e.usuario, e.sector, e.procesador].some(v => v && v.toLowerCase().includes(term))
+      const mq = !term || [e.numero_inventario, e.id_red, e.marca, e.modelo, e.ubicacion, e.numero_serie, e.usuario, e.sector, e.procesador].some(v => v && v.toLowerCase().includes(term))
       return mq && (!tipo || e.tipo === tipo) && (!estado || e.estado === estado) && (!sede || e.ubicacion === sede) && (!sector || e.sector === sector)
     })
     setFiltered(result)
@@ -63,7 +63,6 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
       ubicacion: form.ubicacion || null,
       sector: form.sector || null,
       usuario: form.usuario || null,
-      responsable: form.responsable || null,
       fecha_adquisicion: form.fecha_adquisicion || null,
       garantia_hasta: form.garantia_hasta || null,
       observaciones: form.observaciones || null,

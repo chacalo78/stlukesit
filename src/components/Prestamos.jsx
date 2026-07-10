@@ -85,7 +85,7 @@ function Prestamos({ puedeEditar, isCoordinador, currentUserSede, currentUserNom
     const { error } = await supabase.from('prestamos').insert(payload)
     if (error) { showToast('Error: ' + error.message, 'error'); return }
 
-    await supabase.from('equipos').update({ estado: 'Prestado' }).eq('id', form.equipo_id)
+    await supabase.from('equipos').update({ estado: 'Prestado', usuario: payload.persona }).eq('id', form.equipo_id)
     const equipo = equiposDisponibles.find(e => e.id === form.equipo_id)
     await supabase.from('movimientos').insert({
       equipo_id: form.equipo_id,
@@ -109,7 +109,7 @@ function Prestamos({ puedeEditar, isCoordinador, currentUserSede, currentUserNom
     }).eq('id', p.id)
     if (error) { showToast('Error al registrar la devolución', 'error'); return }
 
-    await supabase.from('equipos').update({ estado: 'Activo' }).eq('id', p.equipo_id)
+    await supabase.from('equipos').update({ estado: 'Activo', usuario: null }).eq('id', p.equipo_id)
     await supabase.from('movimientos').insert({
       equipo_id: p.equipo_id,
       tipo_movimiento: 'Devolución',

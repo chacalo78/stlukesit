@@ -18,7 +18,6 @@ function ModalEquipo({ equipo, onClose, onSave }) {
     ubicacion: '',
     sector: '',
     usuario: '',
-    responsable: '',
     fecha_adquisicion: '',
     garantia_hasta: '',
     observaciones: ''
@@ -176,13 +175,9 @@ function ModalEquipo({ equipo, onClose, onSave }) {
                 {SECTORES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
-            <div>
+            <div style={{ gridColumn: '1 / -1' }}>
               <label style={labelStyle}>Usuario</label>
               <input style={inputStyle} value={form.usuario || ''} onChange={e => set('usuario', e.target.value)} placeholder="Nombre del usuario" />
-            </div>
-            <div>
-              <label style={labelStyle}>Responsable</label>
-              <input style={inputStyle} value={form.responsable || ''} onChange={e => set('responsable', e.target.value)} />
             </div>
 
             <div style={sectionStyle}>Adquisición</div>
