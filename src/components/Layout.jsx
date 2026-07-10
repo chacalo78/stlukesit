@@ -163,7 +163,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
         </div>
 
         {modalPasswordOpen && (
-          <ModalCambiarPassword onClose={() => setModalPasswordOpen(false)} />
+          <ModalCambiarPassword email={session.user.email} onClose={() => setModalPasswordOpen(false)} />
         )}
 
       </div>

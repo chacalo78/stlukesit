@@ -21,7 +21,8 @@ const labelStyle = {
   marginBottom: '5px'
 }
 
-function ModalCambiarPassword({ onClose }) {
+function ModalCambiarPassword({ email, onClose }) {
+  const [passwordActual, setPasswordActual] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -29,20 +30,28 @@ function ModalCambiarPassword({ onClose }) {
   const [listo, setListo] = useState(false)
 
   async function handleGuardar() {
-    if (!password || !confirmPassword) {
-      setError('Completá los dos campos')
+    if (!passwordActual || !password || !confirmPassword) {
+      setError('Completá los tres campos')
       return
     }
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
+      setError('La nueva contraseña debe tener al menos 6 caracteres')
       return
     }
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden')
+      setError('Las contraseñas nuevas no coinciden')
       return
     }
     setLoading(true)
     setError('')
+
+    const { error: errorActual } = await supabase.auth.signInWithPassword({ email, password: passwordActual })
+    if (errorActual) {
+      setLoading(false)
+      setError('La contraseña actual es incorrecta')
+      return
+    }
+
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (error) {
@@ -92,6 +101,16 @@ function ModalCambiarPassword({ onClose }) {
           <>
             {/* Body */}
             <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={labelStyle}>Contraseña actual</label>
+                <input
+                  type="password"
+                  style={inputStyle}
+                  value={passwordActual}
+                  onChange={e => setPasswordActual(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
               <div>
                 <label style={labelStyle}>Nueva contraseña</label>
                 <input
