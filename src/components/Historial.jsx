@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
-function Historial() {
+function Historial({ onVerEquipo }) {
   const [movimientos, setMovimientos] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -9,7 +9,7 @@ function Historial() {
     async function cargarHistorial() {
       const { data } = await supabase
         .from('movimientos')
-        .select('*, equipos(numero_inventario, tipo)')
+        .select('*, equipos(id, numero_inventario, tipo)')
         .order('fecha', { ascending: false })
         .limit(200)
       setMovimientos(data || [])
@@ -69,7 +69,17 @@ function Historial() {
               <tr key={m.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
                 <td style={{ padding: '10px 14px' }}>{badgeMovimiento(m.tipo_movimiento)}</td>
                 <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a' }}>
-                  {m.equipos?.numero_inventario || '–'}
+                  {m.equipos ? (
+                    <button
+                      onClick={() => onVerEquipo(m.equipos.id)}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a', textDecoration: 'underline'
+                      }}
+                    >
+                      {m.equipos.numero_inventario}
+                    </button>
+                  ) : '–'}
                 </td>
                 <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>
                   {m.equipos?.tipo || '–'}

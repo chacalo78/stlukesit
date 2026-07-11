@@ -72,7 +72,9 @@ function App() {
         equipoIdInicial={equipoIdInicial}
         onEquipoIdInicialConsumido={() => setEquipoIdInicial(null)}
       />
-      case 'historial': return canViewHistorial ? <Historial /> : sinPermiso
+      case 'historial': return canViewHistorial
+        ? <Historial onVerEquipo={id => { setEquipoIdInicial(id); setCurrentSection('equipos') }} />
+        : sinPermiso
       case 'reportes': return <Reportes />
       case 'prestamos': return canViewPrestamos
         ? <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />
