@@ -18,7 +18,7 @@ function App() {
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [equipoIdInicial, setEquipoIdInicial] = useState(null)
-  const { role, nombre, sede, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,6 +33,12 @@ function App() {
       setSession(session)
     })
   }, [])
+
+  useEffect(() => {
+    if (!roleLoading && currentSection === 'dashboard' && !canViewDashboard) {
+      setCurrentSection('equipos')
+    }
+  }, [roleLoading, canViewDashboard, currentSection])
 
   if (loading || roleLoading) return (
     <div style={{
@@ -51,9 +57,13 @@ function App() {
 
   if (!session) return <Login />
 
+  const sinPermiso = <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
+
   const renderSection = () => {
     switch (currentSection) {
-      case 'dashboard': return <Dashboard onVerEquipo={id => { setEquipoIdInicial(id); setCurrentSection('equipos') }} />
+      case 'dashboard': return canViewDashboard
+        ? <Dashboard onVerEquipo={id => { setEquipoIdInicial(id); setCurrentSection('equipos') }} />
+        : sinPermiso
       case 'equipos': return <Equipos
         puedeEditar={canManageEquipos}
         isCoordinador={isCoordinador}
@@ -62,15 +72,17 @@ function App() {
         equipoIdInicial={equipoIdInicial}
         onEquipoIdInicialConsumido={() => setEquipoIdInicial(null)}
       />
-      case 'historial': return <Historial />
+      case 'historial': return canViewHistorial ? <Historial /> : sinPermiso
       case 'reportes': return <Reportes />
-      case 'prestamos': return <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />
+      case 'prestamos': return canViewPrestamos
+        ? <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />
+        : sinPermiso
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />
-        : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
-      case 'feedback': return isSuperAdmin
-        ? <FeedbackDev />
-        : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
+        : sinPermiso
+      case 'feedback': return canViewFeedback
+        ? <FeedbackDev puedeGestionar={isSuperAdmin} />
+        : sinPermiso
       default: return (
         <div style={{ color: '#9ab89c' }}>
           Sección en construcción...
@@ -88,7 +100,10 @@ function App() {
       currentSection={currentSection}
       onSectionChange={setCurrentSection}
       canManageUsers={canManageUsers}
-      isSuperAdmin={isSuperAdmin}
+      canViewDashboard={canViewDashboard}
+      canViewHistorial={canViewHistorial}
+      canViewPrestamos={canViewPrestamos}
+      canViewFeedback={canViewFeedback}
     >
       {renderSection()}
     </Layout>

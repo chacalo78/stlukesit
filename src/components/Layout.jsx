@@ -51,18 +51,18 @@ const icons = {
   ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, isSuperAdmin }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback }) {
   const [modalPasswordOpen, setModalPasswordOpen] = useState(false)
   const [modalReporteOpen, setModalReporteOpen] = useState(false)
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard' },
+    ...(canViewDashboard ? [{ id: 'dashboard', label: 'Dashboard' }] : []),
     { id: 'equipos', label: 'Equipos' },
-    { id: 'historial', label: 'Historial' },
+    ...(canViewHistorial ? [{ id: 'historial', label: 'Historial' }] : []),
     { id: 'reportes', label: 'Reportes' },
-    { id: 'prestamos', label: 'Préstamos' },
+    ...(canViewPrestamos ? [{ id: 'prestamos', label: 'Préstamos' }] : []),
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
-    ...(isSuperAdmin ? [{ id: 'feedback', label: 'Reportes de Usuarios' }] : []),
+    ...(canViewFeedback ? [{ id: 'feedback', label: 'Reportes de Usuarios' }] : []),
   ]
 
   const rc = ROLE_BADGE[role] || ROLE_BADGE.usuario

@@ -30,6 +30,10 @@ function useUserRole(user) {
 
   const isSuperAdmin = role === 'super_admin'
   const isAdmin = role === 'admin'
+  const isCoordinador = role === 'coordinador'
+  // Todo lo "operativo" (Dashboard, Historial, Préstamos): todos los
+  // roles salvo Usuario, que solo ve Equipos y Reportes.
+  const esOperativo = isSuperAdmin || isAdmin || isCoordinador
 
   return {
     role,
@@ -38,13 +42,19 @@ function useUserRole(user) {
     loading,
     isSuperAdmin,
     isAdmin,
-    isCoordinador: role === 'coordinador',
+    isCoordinador,
     isUsuario: role === 'usuario',
     // Administrador y Super Administrador comparten permisos operativos
     // (equipos, reportes, gestionar Usuarios); solo super_admin puede
     // administrar cuentas de Administrador/Super Administrador.
-    canManageEquipos: isSuperAdmin || isAdmin || role === 'coordinador',
-    canManageUsers: isSuperAdmin || isAdmin
+    canManageEquipos: esOperativo,
+    canManageUsers: isSuperAdmin || isAdmin,
+    canViewDashboard: esOperativo,
+    canViewHistorial: esOperativo,
+    canViewPrestamos: esOperativo,
+    // Reportes de Usuarios: Admin y Super Admin lo ven, pero solo
+    // Super Admin puede marcar como resuelto/reabrir.
+    canViewFeedback: isSuperAdmin || isAdmin
   }
 }
 

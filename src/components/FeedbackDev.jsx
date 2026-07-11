@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
-function FeedbackDev() {
+function FeedbackDev({ puedeGestionar }) {
   const [reportes, setReportes] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -109,17 +109,19 @@ function FeedbackDev() {
                 {badgeEstado(r.estado)}
                 <span style={{ fontSize: '12px', color: '#5c7a5e' }}>{r.seccion}</span>
               </div>
-              <button
-                onClick={() => handleToggleEstado(r)}
-                style={{
-                  padding: '5px 10px', borderRadius: '6px',
-                  border: `1px solid ${r.estado === 'Nuevo' ? '#34c98a' : '#3a5a3d'}`,
-                  background: 'transparent', color: r.estado === 'Nuevo' ? '#34c98a' : '#9ab89c',
-                  fontSize: '12px', cursor: 'pointer'
-                }}
-              >
-                {r.estado === 'Nuevo' ? 'Marcar resuelto' : 'Reabrir'}
-              </button>
+              {puedeGestionar && (
+                <button
+                  onClick={() => handleToggleEstado(r)}
+                  style={{
+                    padding: '5px 10px', borderRadius: '6px',
+                    border: `1px solid ${r.estado === 'Nuevo' ? '#34c98a' : '#3a5a3d'}`,
+                    background: 'transparent', color: r.estado === 'Nuevo' ? '#34c98a' : '#9ab89c',
+                    fontSize: '12px', cursor: 'pointer'
+                  }}
+                >
+                  {r.estado === 'Nuevo' ? 'Marcar resuelto' : 'Reabrir'}
+                </button>
+              )}
             </div>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#e8f0e8', marginBottom: '4px' }}>{r.asunto}</div>
             <div style={{ fontSize: '13px', color: '#9ab89c', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>{r.descripcion}</div>
