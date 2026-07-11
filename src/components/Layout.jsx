@@ -129,7 +129,10 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           {/* Usuario */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ marginBottom: '3px' }}>
+              <div style={{ fontSize: '12px', color: '#9ab89c', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '3px' }}>
+                {nombre || session.user.email}
+              </div>
+              <div>
                 <span style={{
                   display: 'inline-block', padding: '2px 8px',
                   background: rc.bg, color: rc.color,
@@ -137,9 +140,6 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
                 }}>
                   {ROLE_LABELS[role] || ROLE_LABELS.usuario}{sede ? ` · ${sede}` : ''}
                 </span>
-              </div>
-              <div style={{ fontSize: '12px', color: '#9ab89c', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {nombre || session.user.email}
               </div>
             </div>
             <button
