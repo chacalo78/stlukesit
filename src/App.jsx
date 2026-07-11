@@ -9,6 +9,7 @@ import Historial from './components/Historial'
 import Reportes from './components/Reportes'
 import Prestamos from './components/Prestamos'
 import Usuarios from './components/Usuarios'
+import FeedbackDev from './components/FeedbackDev'
 import useUserRole from './hooks/useUserRole'
 
 function App() {
@@ -59,6 +60,9 @@ function App() {
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />
         : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
+      case 'feedback': return isSuperAdmin
+        ? <FeedbackDev />
+        : <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
       default: return (
         <div style={{ color: '#9ab89c' }}>
           Sección en construcción...
@@ -76,6 +80,7 @@ function App() {
       currentSection={currentSection}
       onSectionChange={setCurrentSection}
       canManageUsers={canManageUsers}
+      isSuperAdmin={isSuperAdmin}
     >
       {renderSection()}
     </Layout>

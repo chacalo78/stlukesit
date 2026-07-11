@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../supabase'
 import { ROLE_LABELS, ROLE_BADGE } from '../roles'
 import ModalCambiarPassword from './ModalCambiarPassword'
+import ModalReportarProblema from './ModalReportarProblema'
 
 const icons = {
   dashboard: (
@@ -43,10 +44,16 @@ const icons = {
       <path d="M4.5 15a8 8 0 0 0 14 3.5M19.5 9a8 8 0 0 0-14-3.5" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
+  feedback: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-4.4 7.4L3 21l2.1-4.7A8.38 8.38 0 1 1 21 11.5Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, isSuperAdmin }) {
   const [modalPasswordOpen, setModalPasswordOpen] = useState(false)
+  const [modalReporteOpen, setModalReporteOpen] = useState(false)
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -55,6 +62,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
     { id: 'reportes', label: 'Reportes' },
     { id: 'prestamos', label: 'Préstamos' },
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
+    ...(isSuperAdmin ? [{ id: 'feedback', label: 'Reportes al Dev' }] : []),
   ]
 
   const rc = ROLE_BADGE[role] || ROLE_BADGE.usuario
@@ -115,7 +123,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios', feedback: 'Reportes al desarrollador' }[currentSection]}
           </div>
 
           {/* Usuario */}
@@ -134,6 +142,16 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
                 {nombre || session.user.email}
               </div>
             </div>
+            <button
+              onClick={() => setModalReporteOpen(true)}
+              style={{
+                padding: '7px 12px', background: 'transparent', flexShrink: 0,
+                border: '1px solid #3a5a3d', borderRadius: '6px',
+                color: '#9ab89c', fontSize: '12px', cursor: 'pointer'
+              }}
+            >
+              Informar error / mejora
+            </button>
             <button
               onClick={() => setModalPasswordOpen(true)}
               style={{
@@ -164,6 +182,10 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
 
         {modalPasswordOpen && (
           <ModalCambiarPassword email={session.user.email} onClose={() => setModalPasswordOpen(false)} />
+        )}
+
+        {modalReporteOpen && (
+          <ModalReportarProblema nombre={nombre} email={session.user.email} onClose={() => setModalReporteOpen(false)} />
         )}
 
       </div>
