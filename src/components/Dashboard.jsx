@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import ModalEquipo from './ModalEquipo'
 
-function Dashboard({ onVerEquipo }) {
+function Dashboard() {
   const [equipos, setEquipos] = useState([])
   const [movimientos, setMovimientos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
   const [prestamosActivos, setPrestamosActivos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [equipoVer, setEquipoVer] = useState(null)
 
   useEffect(() => {
     async function cargarDatos() {
@@ -263,7 +265,7 @@ function Dashboard({ onVerEquipo }) {
                 <tr key={e.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
                   <td style={{ padding: '8px 14px' }}>
                     <button
-                      onClick={() => onVerEquipo(e.id)}
+                      onClick={() => setEquipoVer(e)}
                       style={{
                         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                         fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a', textDecoration: 'underline'
@@ -373,6 +375,10 @@ function Dashboard({ onVerEquipo }) {
             ))}
           </div>
         </div>
+      )}
+
+      {equipoVer && (
+        <ModalEquipo equipo={equipoVer} readOnly onClose={() => setEquipoVer(null)} onSave={() => {}} />
       )}
 
     </div>

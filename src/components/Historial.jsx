@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
+import ModalEquipo from './ModalEquipo'
 
-function Historial({ onVerEquipo }) {
+function Historial() {
   const [movimientos, setMovimientos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [equipoVer, setEquipoVer] = useState(null)
 
   useEffect(() => {
     async function cargarHistorial() {
       const { data } = await supabase
         .from('movimientos')
-        .select('*, equipos(id, numero_inventario, tipo)')
+        .select('*, equipos(*)')
         .order('fecha', { ascending: false })
         .limit(200)
       setMovimientos(data || [])
@@ -71,7 +73,7 @@ function Historial({ onVerEquipo }) {
                 <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a' }}>
                   {m.equipos ? (
                     <button
-                      onClick={() => onVerEquipo(m.equipos.id)}
+                      onClick={() => setEquipoVer(m.equipos)}
                       style={{
                         background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                         fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a', textDecoration: 'underline'
@@ -98,6 +100,9 @@ function Historial({ onVerEquipo }) {
           </tbody>
         </table>
       </div>
+      {equipoVer && (
+        <ModalEquipo equipo={equipoVer} readOnly onClose={() => setEquipoVer(null)} onSave={() => {}} />
+      )}
     </div>
   )
 }
