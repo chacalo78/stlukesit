@@ -17,6 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [equipoIdInicial, setEquipoIdInicial] = useState(null)
   const { role, nombre, sede, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
@@ -52,8 +53,15 @@ function App() {
 
   const renderSection = () => {
     switch (currentSection) {
-      case 'dashboard': return <Dashboard />
-      case 'equipos': return <Equipos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserNombre={nombre} currentUserSede={sede} />
+      case 'dashboard': return <Dashboard onVerEquipo={id => { setEquipoIdInicial(id); setCurrentSection('equipos') }} />
+      case 'equipos': return <Equipos
+        puedeEditar={canManageEquipos}
+        isCoordinador={isCoordinador}
+        currentUserNombre={nombre}
+        currentUserSede={sede}
+        equipoIdInicial={equipoIdInicial}
+        onEquipoIdInicialConsumido={() => setEquipoIdInicial(null)}
+      />
       case 'historial': return <Historial />
       case 'reportes': return <Reportes />
       case 'prestamos': return <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />

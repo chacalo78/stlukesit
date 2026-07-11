@@ -5,7 +5,7 @@ import { ESTADOS_EQUIPO, SEDES } from '../constants'
 
 const PAGE_SIZE = 15
 
-function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSede }) {
+function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSede, equipoIdInicial, onEquipoIdInicialConsumido }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -17,6 +17,16 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
 
   useEffect(() => { cargarEquipos() }, [])
   useEffect(() => { aplicarFiltros() }, [equipos, filtros])
+
+  useEffect(() => {
+    if (!equipoIdInicial || !equipos.length) return
+    const equipo = equipos.find(e => e.id === equipoIdInicial)
+    if (equipo) {
+      setEquipoEditando(equipo)
+      setModalOpen(true)
+    }
+    onEquipoIdInicialConsumido()
+  }, [equipoIdInicial, equipos])
 
   async function cargarEquipos() {
     setLoading(true)
@@ -274,6 +284,7 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
       {modalOpen && (
         <ModalEquipo
           equipo={equipoEditando}
+          readOnly={!puedeEditar}
           onClose={() => { setModalOpen(false); setEquipoEditando(null) }}
           onSave={handleSave}
         />

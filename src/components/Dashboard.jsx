@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 
-function Dashboard() {
+function Dashboard({ onVerEquipo }) {
   const [equipos, setEquipos] = useState([])
   const [movimientos, setMovimientos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
@@ -261,7 +261,17 @@ function Dashboard() {
             <tbody>
               {requiereAtencionConFecha.map(e => (
                 <tr key={e.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
-                  <td style={{ padding: '8px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a' }}>{e.numero_inventario}</td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <button
+                      onClick={() => onVerEquipo(e.id)}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a', textDecoration: 'underline'
+                      }}
+                    >
+                      {e.numero_inventario}
+                    </button>
+                  </td>
                   <td style={{ padding: '8px 14px', color: '#e8f0e8', fontSize: '13px' }}>{e.tipo}</td>
                   <td style={{ padding: '8px 14px', color: '#9ab89c', fontSize: '13px' }}>{e.ubicacion || '–'}</td>
                   <td style={{ padding: '8px 14px', color: '#9ab89c', fontSize: '13px' }}>{e.usuario || '–'}</td>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ESTADOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
-function ModalEquipo({ equipo, onClose, onSave }) {
+function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
   const [form, setForm] = useState({
     numero_inventario: '',
     id_red: '',
@@ -79,15 +79,15 @@ function ModalEquipo({ equipo, onClose, onSave }) {
           position: 'sticky', top: 0, background: '#152116', zIndex: 1
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#c8a44a' }}>
-            {equipo ? 'Editar equipo' : 'Nuevo equipo'}
+            {readOnly ? 'Ficha del equipo' : (equipo ? 'Editar equipo' : 'Nuevo equipo')}
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5c7a5e', fontSize: '20px' }}>✕</button>
         </div>
 
         {/* Body */}
         <div style={{ padding: '20px 24px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            
+          <fieldset disabled={readOnly} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', border: 'none', padding: 0, margin: 0 }}>
+
             <div style={sectionStyle}>Identificación</div>
             
             <div>
@@ -195,7 +195,7 @@ function ModalEquipo({ equipo, onClose, onSave }) {
               <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: '70px' }} value={form.observaciones || ''} onChange={e => set('observaciones', e.target.value)} placeholder="Notas adicionales..." />
             </div>
 
-          </div>
+          </fieldset>
         </div>
 
         {/* Footer */}
@@ -205,11 +205,13 @@ function ModalEquipo({ equipo, onClose, onSave }) {
           position: 'sticky', bottom: 0, background: '#152116'
         }}>
           <button onClick={onClose} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid #3a5a3d', borderRadius: '6px', color: '#9ab89c', fontSize: '13px', cursor: 'pointer' }}>
-            Cancelar
+            {readOnly ? 'Cerrar' : 'Cancelar'}
           </button>
-          <button onClick={() => onSave(form)} style={{ padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-            Guardar
-          </button>
+          {!readOnly && (
+            <button onClick={() => onSave(form)} style={{ padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              Guardar
+            </button>
+          )}
         </div>
       </div>
     </div>
