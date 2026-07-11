@@ -62,7 +62,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
     { id: 'reportes', label: 'Reportes' },
     { id: 'prestamos', label: 'Préstamos' },
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
-    ...(isSuperAdmin ? [{ id: 'feedback', label: 'Reportes al Dev' }] : []),
+    ...(isSuperAdmin ? [{ id: 'feedback', label: 'Reportes de Usuarios' }] : []),
   ]
 
   const rc = ROLE_BADGE[role] || ROLE_BADGE.usuario
@@ -123,7 +123,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios', feedback: 'Reportes al desarrollador' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios', feedback: 'Reportes de Usuarios' }[currentSection]}
           </div>
 
           {/* Usuario */}
