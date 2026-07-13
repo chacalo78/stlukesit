@@ -34,10 +34,13 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!loading && !roleLoading && currentSection === 'dashboard' && !canViewDashboard) {
+    // role !== null evita un frame intermedio donde roleLoading ya
+    // parpadeó a false (por el hook reaccionando a un user aún
+    // indefinido) pero el rol real todavía no llegó.
+    if (!loading && !roleLoading && role !== null && currentSection === 'dashboard' && !canViewDashboard) {
       setCurrentSection('equipos')
     }
-  }, [loading, roleLoading, canViewDashboard, currentSection])
+  }, [loading, roleLoading, role, canViewDashboard, currentSection])
 
   if (loading || roleLoading) return (
     <div style={{
