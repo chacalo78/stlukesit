@@ -93,6 +93,33 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
     cargarUsuarios()
   }
 
+  async function handleToggleHabilitado(usuario) {
+    if (usuario.email === currentUserEmail) {
+      showToast('No podés inhabilitar tu propio usuario', 'error')
+      return
+    }
+    if (!isSuperAdmin && esRolElevado(usuario.rol)) {
+      showToast('Solo un Super Administrador puede inhabilitar cuentas de Administrador', 'error')
+      return
+    }
+    const nuevoHabilitado = !usuario.habilitado
+    const accion = nuevoHabilitado ? 'habilitar' : 'inhabilitar'
+    if (!window.confirm(`¿Confirmar ${accion} el acceso de "${usuario.nombre || usuario.email}"?${nuevoHabilitado ? '' : ' No va a poder ingresar al sistema hasta que se lo vuelva a habilitar.'}`)) return
+
+    const { data, error } = await supabase.functions.invoke('toggle-user-access', {
+      body: { targetEmail: usuario.email, habilitado: nuevoHabilitado }
+    })
+    if (error || data?.error) {
+      showToast(data?.error || 'Error al actualizar el acceso', 'error')
+      return
+    }
+
+    const { error: dbError } = await supabase.from('user_roles').update({ habilitado: nuevoHabilitado }).eq('id', usuario.id)
+    if (dbError) { showToast('Error al guardar el estado', 'error'); return }
+    showToast(nuevoHabilitado ? 'Usuario habilitado' : 'Usuario inhabilitado')
+    cargarUsuarios()
+  }
+
   const badgeRol = (rol) => {
     const e = ROLE_BADGE[rol] || ROLE_BADGE.usuario
     return (
@@ -188,15 +215,27 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
                 <tr key={u.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
                   <td style={{ padding: '10px 14px', color: '#e8f0e8', fontSize: '13px' }}>{u.nombre || '–'}</td>
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '12px' }}>{u.email}</td>
-                  <td style={{ padding: '10px 14px' }}>{badgeRol(u.rol)}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      {badgeRol(u.rol)}
+                      {!u.habilitado && (
+                        <span style={{ background: 'rgba(226,85,85,.15)', color: '#e25555', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>
+                          Inhabilitado
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{u.sede || '–'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: '5px' }}>
                       {(isSuperAdmin || !esRolElevado(u.rol)) ? (
                         <>
                           <button onClick={() => { setUsuarioEditando(u); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
-                          <button onClick={() => setUsuarioResetPassword(u)} style={btnStyle('#4f8ef7')}>Contraseña</button>
                           <button onClick={() => handleBaja(u)} style={btnStyle('#e25555')}>Baja</button>
+                          <button onClick={() => handleToggleHabilitado(u)} style={btnStyle(u.habilitado ? '#f5a623' : '#34c98a')}>
+                            {u.habilitado ? 'Inhabilitar' : 'Habilitar'}
+                          </button>
+                          <button onClick={() => setUsuarioResetPassword(u)} style={btnStyle('#4f8ef7')}>Restablecer Contraseña</button>
                         </>
                       ) : (
                         <span style={{ color: '#5c7a5e', fontSize: '11px' }}>Solo Super Admin</span>

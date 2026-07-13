@@ -6,6 +6,7 @@ function useUserRole(user) {
   const [nombre, setNombre] = useState(null)
   const [sede, setSede] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [cuentaInhabilitada, setCuentaInhabilitada] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -19,6 +20,14 @@ function useUserRole(user) {
         .select('*')
         .eq('email', user.email)
         .single()
+
+      if (data?.habilitado === false) {
+        setCuentaInhabilitada(true)
+        await supabase.auth.signOut()
+        setLoading(false)
+        return
+      }
+
       const rolCrudo = data?.rol || 'usuario'
       setRole(rolCrudo === 'viewer' ? 'usuario' : rolCrudo)
       setNombre(data?.nombre || user.email)
@@ -40,6 +49,7 @@ function useUserRole(user) {
     nombre,
     sede,
     loading,
+    cuentaInhabilitada,
     isSuperAdmin,
     isAdmin,
     isCoordinador,

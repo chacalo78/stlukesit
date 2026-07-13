@@ -17,7 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const { role, nombre, sede, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -53,6 +53,21 @@ function App() {
   )
 
   if (passwordRecovery) return <UpdatePassword onDone={() => setPasswordRecovery(false)} />
+
+  if (cuentaInhabilitada) return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      padding: '24px',
+      textAlign: 'center',
+      background: '#0f1a10',
+      color: '#e25555'
+    }}>
+      Tu cuenta fue inhabilitada. Contactá a un administrador del sistema.
+    </div>
+  )
 
   if (!session) return <Login />
 
