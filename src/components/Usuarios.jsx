@@ -6,7 +6,7 @@ import { ROLES, ROLE_LABELS, ROLE_BADGE } from '../roles'
 
 const esRolElevado = (rol) => rol === 'admin' || rol === 'super_admin'
 
-function Usuarios({ currentUserEmail, isSuperAdmin }) {
+function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
   const [usuarios, setUsuarios] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -65,9 +65,19 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
         .update({ nombre: payload.nombre, rol: payload.rol, sede: payload.sede })
         .eq('id', usuarioEditando.id)
       error = res.error
+      if (!error) await supabase.from('movimientos').insert({
+        tipo_movimiento: 'Modificación usuario',
+        descripcion: `Usuario modificado: ${payload.nombre} (${payload.email}) — Rol: ${ROLE_LABELS[payload.rol]}${payload.sede ? `, Sede: ${payload.sede}` : ''}`,
+        usuario: currentUserNombre || 'Sistema'
+      })
     } else {
       const res = await supabase.from('user_roles').insert(payload)
       error = res.error
+      if (!error) await supabase.from('movimientos').insert({
+        tipo_movimiento: 'Alta usuario',
+        descripcion: `Usuario dado de alta: ${payload.nombre} (${payload.email}) — Rol: ${ROLE_LABELS[payload.rol]}`,
+        usuario: currentUserNombre || 'Sistema'
+      })
     }
 
     if (error) { showToast('Error: ' + error.message, 'error'); return }
@@ -89,6 +99,11 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
     if (!window.confirm(`¿Confirmar baja del usuario "${usuario.nombre || usuario.email}"? Esto quita sus permisos en el sistema (no borra la cuenta de acceso).`)) return
     const { error } = await supabase.from('user_roles').delete().eq('id', usuario.id)
     if (error) { showToast('Error al dar de baja', 'error'); return }
+    await supabase.from('movimientos').insert({
+      tipo_movimiento: 'Baja usuario',
+      descripcion: `Usuario dado de baja: ${usuario.nombre || usuario.email}`,
+      usuario: currentUserNombre || 'Sistema'
+    })
     showToast('Usuario dado de baja')
     cargarUsuarios()
   }
@@ -116,6 +131,11 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
 
     const { error: dbError } = await supabase.from('user_roles').update({ habilitado: nuevoHabilitado }).eq('id', usuario.id)
     if (dbError) { showToast('Error al guardar el estado', 'error'); return }
+    await supabase.from('movimientos').insert({
+      tipo_movimiento: nuevoHabilitado ? 'Habilitado' : 'Inhabilitado',
+      descripcion: `Usuario ${nuevoHabilitado ? 'habilitado' : 'inhabilitado'}: ${usuario.nombre || usuario.email}`,
+      usuario: currentUserNombre || 'Sistema'
+    })
     showToast(nuevoHabilitado ? 'Usuario habilitado' : 'Usuario inhabilitado')
     cargarUsuarios()
   }
@@ -270,6 +290,13 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
           nombre={usuarioResetPassword.nombre}
           email={usuarioResetPassword.email}
           onClose={() => setUsuarioResetPassword(null)}
+          onSuccess={() => {
+            supabase.from('movimientos').insert({
+              tipo_movimiento: 'Restablecimiento de contraseña',
+              descripcion: `Contraseña restablecida para: ${usuarioResetPassword.nombre || usuarioResetPassword.email}`,
+              usuario: currentUserNombre || 'Sistema'
+            })
+          }}
         />
       )}
     </div>

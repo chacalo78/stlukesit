@@ -21,7 +21,7 @@ const labelStyle = {
   marginBottom: '5px'
 }
 
-function ModalResetPassword({ nombre, email, onClose }) {
+function ModalResetPassword({ nombre, email, onClose, onSuccess }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -51,6 +51,7 @@ function ModalResetPassword({ nombre, email, onClose }) {
       setError(data?.error || 'No pudimos actualizar la contraseña. Probá de nuevo.')
     } else {
       setListo(true)
+      onSuccess?.()
     }
   }
 

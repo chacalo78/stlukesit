@@ -80,6 +80,12 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       'Traslado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
       'Préstamo': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
       'Devolución': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
+      'Alta usuario': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
+      'Modificación usuario': { bg: 'rgba(200,164,74,.15)', color: '#c8a44a' },
+      'Baja usuario': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
+      'Inhabilitado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
+      'Habilitado': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
+      'Restablecimiento de contraseña': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
     }
     const c = colores[tipo] || { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
     return (

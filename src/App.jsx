@@ -95,7 +95,7 @@ function App() {
         ? <Prestamos puedeEditar={canManageEquipos} sedeScoped={sedeScoped} currentUserSede={sede} currentUserNombre={nombre} />
         : sinPermiso
       case 'usuarios': return canManageUsers
-        ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />
+        ? <Usuarios currentUserEmail={session.user.email} currentUserNombre={nombre} isSuperAdmin={isSuperAdmin} />
         : sinPermiso
       case 'feedback': return canViewFeedback
         ? <FeedbackDev puedeGestionar={isSuperAdmin} />
