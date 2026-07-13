@@ -31,6 +31,7 @@ function Login() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cuentaInhabilitada, setCuentaInhabilitada] = useState(false)
 
   async function handleLogin() {
     if (!email || !password) {
@@ -39,9 +40,14 @@ function Login() {
     }
     setLoading(true)
     setError('')
+    setCuentaInhabilitada(false)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError('Email o contraseña incorrectos')
+      if (error.code === 'user_banned' || error.message === 'User is banned') {
+        setCuentaInhabilitada(true)
+      } else {
+        setError('Email o contraseña incorrectos')
+      }
       setLoading(false)
     }
   }
@@ -69,6 +75,7 @@ function Login() {
     setMode(newMode)
     setError('')
     setInfo('')
+    setCuentaInhabilitada(false)
   }
 
   return (
@@ -141,6 +148,23 @@ function Login() {
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               style={inputStyle}
             />
+          </div>
+        )}
+
+        {cuentaInhabilitada && (
+          <div style={{
+            background: 'rgba(226,85,85,.1)',
+            border: '1px solid rgba(226,85,85,.3)',
+            color: '#e25555',
+            padding: '10px 14px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            marginBottom: '12px'
+          }}>
+            Tu cuenta está inhabilitada. Contactá a un administrador del sistema en{' '}
+            <a href="mailto:tecnico@colegiosanlucas.edu.ar" style={{ color: '#e25555', fontWeight: '600' }}>
+              tecnico@colegiosanlucas.edu.ar
+            </a> para más información.
           </div>
         )}
 
