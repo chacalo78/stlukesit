@@ -10,7 +10,7 @@ function estadoPrestamo(p) {
   return 'Activo'
 }
 
-function Prestamos({ puedeEditar, isCoordinador, currentUserSede, currentUserNombre }) {
+function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre }) {
   const [prestamos, setPrestamos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +29,7 @@ function Prestamos({ puedeEditar, isCoordinador, currentUserSede, currentUserNom
       .select('*, equipos(id, numero_inventario, tipo, marca, modelo, ubicacion)')
       .order('fecha_prestamo', { ascending: false })
     let rows = data || []
-    if (isCoordinador && currentUserSede) {
+    if (sedeScoped && currentUserSede) {
       rows = rows.filter(p => p.equipos?.ubicacion === currentUserSede)
     }
     setPrestamos(rows)
@@ -38,7 +38,7 @@ function Prestamos({ puedeEditar, isCoordinador, currentUserSede, currentUserNom
 
   async function cargarEquiposDisponibles() {
     let query = supabase.from('equipos').select('*').order('numero_inventario', { ascending: true })
-    if (isCoordinador && currentUserSede) {
+    if (sedeScoped && currentUserSede) {
       query = query.eq('ubicacion', currentUserSede)
     }
     const { data } = await query

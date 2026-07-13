@@ -5,7 +5,7 @@ import { ESTADOS_EQUIPO, SEDES } from '../constants'
 
 const PAGE_SIZE = 15
 
-function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSede }) {
+function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,8 +21,8 @@ function Equipos({ puedeEditar, isCoordinador, currentUserNombre, currentUserSed
   async function cargarEquipos() {
     setLoading(true)
     let query = supabase.from('equipos').select('*').order('numero_inventario', { ascending: true })
-    // Coordinador solo ve su sede
-    if (isCoordinador && currentUserSede) {
+    // Coordinador/Director solo ven su sede
+    if (sedeScoped && currentUserSede) {
       query = query.eq('ubicacion', currentUserSede)
     }
     const { data } = await query

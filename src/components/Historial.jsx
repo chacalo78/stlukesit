@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
 
-function Historial() {
+function Historial({ sedeScoped, currentUserSede }) {
   const [movimientos, setMovimientos] = useState([])
   const [loading, setLoading] = useState(true)
   const [equipoVer, setEquipoVer] = useState(null)
@@ -14,11 +14,15 @@ function Historial() {
         .select('*, equipos(*)')
         .order('fecha', { ascending: false })
         .limit(200)
-      setMovimientos(data || [])
+      let rows = data || []
+      if (sedeScoped && currentUserSede) {
+        rows = rows.filter(m => m.equipos?.ubicacion === currentUserSede)
+      }
+      setMovimientos(rows)
       setLoading(false)
     }
     cargarHistorial()
-  }, [])
+  }, [sedeScoped, currentUserSede])
 
   const badgeMovimiento = (tipo) => {
     const estilos = {

@@ -17,7 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, isCoordinador, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -75,17 +75,21 @@ function App() {
 
   const renderSection = () => {
     switch (currentSection) {
-      case 'dashboard': return canViewDashboard ? <Dashboard /> : sinPermiso
+      case 'dashboard': return canViewDashboard
+        ? <Dashboard sedeScoped={sedeScoped} currentUserSede={sede} />
+        : sinPermiso
       case 'equipos': return <Equipos
         puedeEditar={canManageEquipos}
-        isCoordinador={isCoordinador}
+        sedeScoped={sedeScoped}
         currentUserNombre={nombre}
         currentUserSede={sede}
       />
-      case 'historial': return canViewHistorial ? <Historial /> : sinPermiso
+      case 'historial': return canViewHistorial
+        ? <Historial sedeScoped={sedeScoped} currentUserSede={sede} />
+        : sinPermiso
       case 'reportes': return <Reportes />
       case 'prestamos': return canViewPrestamos
-        ? <Prestamos puedeEditar={canManageEquipos} isCoordinador={isCoordinador} currentUserSede={sede} currentUserNombre={nombre} />
+        ? <Prestamos puedeEditar={canManageEquipos} sedeScoped={sedeScoped} currentUserSede={sede} currentUserNombre={nombre} />
         : sinPermiso
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} isSuperAdmin={isSuperAdmin} />

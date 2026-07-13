@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
 
-function Dashboard() {
+function Dashboard({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [movimientos, setMovimientos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
@@ -12,31 +12,40 @@ function Dashboard() {
 
   useEffect(() => {
     async function cargarDatos() {
-      const { data: equiposData } = await supabase.from('equipos').select('*')
-      const { data: movsData } = await supabase
-        .from('movimientos')
-        .select('*')
-        .order('fecha', { ascending: false })
-        .limit(5)
-      // Traemos un set más amplio de movimientos para poder calcular
-      // hace cuánto cada equipo pasó a "Requiere atención"
+      const restringirSede = sedeScoped && currentUserSede
+
+      let equiposQuery = supabase.from('equipos').select('*')
+      if (restringirSede) equiposQuery = equiposQuery.eq('ubicacion', currentUserSede)
+      const { data: equiposData } = await equiposQuery
+
+      // Traemos un set amplio de movimientos: sirve tanto para "Últimos
+      // movimientos" (los primeros 5) como para calcular hace cuánto
+      // cada equipo pasó a "Requiere atención".
       const { data: allMovsData } = await supabase
         .from('movimientos')
-        .select('*')
+        .select('*, equipos(ubicacion)')
         .order('fecha', { ascending: false })
         .limit(500)
+      const movsFiltrados = restringirSede
+        ? (allMovsData || []).filter(m => m.equipos?.ubicacion === currentUserSede)
+        : (allMovsData || [])
+
       const { data: prestamosData } = await supabase
         .from('prestamos')
-        .select('*')
+        .select('*, equipos(ubicacion)')
         .is('fecha_devolucion_real', null)
+      const prestamosFiltrados = restringirSede
+        ? (prestamosData || []).filter(p => p.equipos?.ubicacion === currentUserSede)
+        : (prestamosData || [])
+
       setEquipos(equiposData || [])
-      setMovimientos(movsData || [])
-      setTodosMovimientos(allMovsData || [])
-      setPrestamosActivos(prestamosData || [])
+      setMovimientos(movsFiltrados.slice(0, 5))
+      setTodosMovimientos(movsFiltrados)
+      setPrestamosActivos(prestamosFiltrados)
       setLoading(false)
     }
     cargarDatos()
-  }, [])
+  }, [sedeScoped, currentUserSede])
 
   if (loading) return <div style={{ color: '#9ab89c' }}>Cargando...</div>
 

@@ -5,8 +5,8 @@ const SEDES = ['Nordelta', 'HSM', 'Olivos']
 
 function ModalUsuario({ usuario, onClose, onSave, canManageAdmins }) {
   const rolesDisponibles = canManageAdmins
-    ? ['super_admin', 'admin', 'coordinador', 'usuario']
-    : ['coordinador', 'usuario']
+    ? ['super_admin', 'admin', 'coordinador', 'director', 'usuario']
+    : ['coordinador', 'director', 'usuario']
 
   const [form, setForm] = useState({
     email: '',
