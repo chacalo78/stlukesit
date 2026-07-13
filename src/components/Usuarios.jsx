@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalUsuario from './ModalUsuario'
+import ModalResetPassword from './ModalResetPassword'
 import { ROLES, ROLE_LABELS, ROLE_BADGE } from '../roles'
 
 const esRolElevado = (rol) => rol === 'admin' || rol === 'super_admin'
@@ -12,6 +13,7 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
   const [filtros, setFiltros] = useState({ q: '', rol: '', sede: '' })
   const [modalOpen, setModalOpen] = useState(false)
   const [usuarioEditando, setUsuarioEditando] = useState(null)
+  const [usuarioResetPassword, setUsuarioResetPassword] = useState(null)
   const [toast, setToast] = useState(null)
 
   useEffect(() => { cargarUsuarios() }, [])
@@ -193,6 +195,7 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
                       {(isSuperAdmin || !esRolElevado(u.rol)) ? (
                         <>
                           <button onClick={() => { setUsuarioEditando(u); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
+                          <button onClick={() => setUsuarioResetPassword(u)} style={btnStyle('#4f8ef7')}>Contraseña</button>
                           <button onClick={() => handleBaja(u)} style={btnStyle('#e25555')}>Baja</button>
                         </>
                       ) : (
@@ -220,6 +223,14 @@ function Usuarios({ currentUserEmail, isSuperAdmin }) {
           onClose={() => { setModalOpen(false); setUsuarioEditando(null) }}
           onSave={handleSave}
           canManageAdmins={isSuperAdmin}
+        />
+      )}
+
+      {usuarioResetPassword && (
+        <ModalResetPassword
+          nombre={usuarioResetPassword.nombre}
+          email={usuarioResetPassword.email}
+          onClose={() => setUsuarioResetPassword(null)}
         />
       )}
     </div>
