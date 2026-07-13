@@ -10,9 +10,18 @@ function useUserRole(user) {
 
   useEffect(() => {
     if (!user) {
+      setRole(null)
+      setNombre(null)
+      setSede(null)
+      setCuentaInhabilitada(false)
       setLoading(false)
       return
     }
+    // Se limpia el rol de una sesión anterior (si la hubo, en la misma
+    // pestaña) para que nunca quede un valor viejo mientras se carga
+    // el rol real de este usuario.
+    setRole(null)
+    setCuentaInhabilitada(false)
     setLoading(true)
     async function cargarRol() {
       const { data } = await supabase
