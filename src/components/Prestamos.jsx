@@ -176,21 +176,9 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
         </div>
       )}
 
-      {/* Botón nuevo préstamo */}
-      {puedeEditar && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-          <button
-            onClick={abrirModalNuevo}
-            style={{ padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-          >
-            + Nuevo préstamo
-          </button>
-        </div>
-      )}
-
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+        <div style={{ position: 'relative', width: '220px' }}>
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#5c7a5e' }}>🔍</span>
           <input
             type="text"
@@ -208,6 +196,15 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
           <option value="">Todas las sedes</option>
           {SEDES.map(t => <option key={t}>{t}</option>)}
         </select>
+        {/* Botón nuevo préstamo */}
+        {puedeEditar && (
+          <button
+            onClick={abrirModalNuevo}
+            style={{ marginLeft: 'auto', padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + Nuevo préstamo
+          </button>
+        )}
       </div>
 
       {/* Tabla */}

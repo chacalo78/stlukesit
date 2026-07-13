@@ -185,19 +185,9 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
         </div>
       )}
 
-      {/* Botón nuevo usuario */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-        <button
-          onClick={() => { setUsuarioEditando(null); setModalOpen(true) }}
-          style={{ padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-        >
-          + Nuevo usuario
-        </button>
-      </div>
-
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+        <div style={{ position: 'relative', width: '220px' }}>
           <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#5c7a5e' }}>🔍</span>
           <input
             type="text"
@@ -215,6 +205,13 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
           <option value="">Todas las sedes</option>
           {['Nordelta', 'HSM', 'Olivos'].map(t => <option key={t}>{t}</option>)}
         </select>
+        {/* Botón nuevo usuario */}
+        <button
+          onClick={() => { setUsuarioEditando(null); setModalOpen(true) }}
+          style={{ marginLeft: 'auto', padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          + Nuevo usuario
+        </button>
       </div>
 
       {/* Tabla */}
