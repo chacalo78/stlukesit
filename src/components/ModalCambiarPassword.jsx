@@ -58,6 +58,7 @@ function ModalCambiarPassword({ email, onClose }) {
       setError('No pudimos actualizar la contraseña. Probá de nuevo.')
     } else {
       setListo(true)
+      supabase.functions.invoke('notify-password-changed').catch(() => {})
     }
   }
 

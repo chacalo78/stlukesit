@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendMail, passwordChangedTemplate } from '../_shared/mailer.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,6 +80,18 @@ Deno.serve(async (req) => {
     const { error: updateError } = await adminClient.auth.admin.updateUserById(targetUser.id, { password: newPassword })
     if (updateError) {
       return json({ error: updateError.message }, 500)
+    }
+
+    // Aviso al usuario afectado; si falla el envío no rompemos la
+    // respuesta, la contraseña ya se cambió correctamente.
+    try {
+      await sendMail({
+        to: targetEmail,
+        subject: 'Tu contraseña fue actualizada',
+        html: passwordChangedTemplate('Un administrador del sistema restableció tu contraseña.'),
+      })
+    } catch {
+      // silencioso a propósito
     }
 
     return json({ success: true })

@@ -50,6 +50,7 @@ function UpdatePassword({ onDone }) {
     if (error) {
       setError('No pudimos actualizar la contraseña. Probá pedir el enlace de nuevo.')
     } else {
+      supabase.functions.invoke('notify-password-changed').catch(() => {})
       onDone()
     }
   }
