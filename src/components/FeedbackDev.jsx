@@ -123,8 +123,8 @@ function FeedbackDev({ puedeGestionar }) {
                 </button>
               )}
             </div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#e8f0e8', marginBottom: '4px' }}>{r.asunto}</div>
-            <div style={{ fontSize: '13px', color: '#9ab89c', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>{r.descripcion}</div>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#e8f0e8', marginBottom: '4px', textDecoration: r.estado === 'Resuelto' ? 'line-through' : 'none' }}>{r.asunto}</div>
+            <div style={{ fontSize: '13px', color: '#9ab89c', marginBottom: '8px', whiteSpace: 'pre-wrap', textDecoration: r.estado === 'Resuelto' ? 'line-through' : 'none' }}>{r.descripcion}</div>
             <div style={{ fontSize: '11px', color: '#5c7a5e' }}>
               {r.reportado_por} ({r.reportado_por_email}) · {formatDate(r.created_at)}
             </div>
