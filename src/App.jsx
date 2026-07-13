@@ -34,10 +34,10 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!roleLoading && currentSection === 'dashboard' && !canViewDashboard) {
+    if (!loading && !roleLoading && currentSection === 'dashboard' && !canViewDashboard) {
       setCurrentSection('equipos')
     }
-  }, [roleLoading, canViewDashboard, currentSection])
+  }, [loading, roleLoading, canViewDashboard, currentSection])
 
   if (loading || roleLoading) return (
     <div style={{
