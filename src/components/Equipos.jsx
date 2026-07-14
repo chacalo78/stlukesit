@@ -13,6 +13,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
   const [filtros, setFiltros] = useState({ q: '', tipo: '', estado: '', sede: '', sector: '' })
   const [modalOpen, setModalOpen] = useState(false)
   const [equipoEditando, setEquipoEditando] = useState(null)
+  const [modoSoloLectura, setModoSoloLectura] = useState(false)
   const [toast, setToast] = useState(null)
 
   useEffect(() => { cargarEquipos() }, [])
@@ -200,7 +201,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
         {/* Botón nuevo equipo — solo Admin y Coordinador */}
         {puedeEditar && (
           <button
-            onClick={() => { setEquipoEditando(null); setModalOpen(true) }}
+            onClick={() => { setEquipoEditando(null); setModoSoloLectura(false); setModalOpen(true) }}
             style={{ marginLeft: 'auto', padding: '7px 14px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             + Nuevo equipo
@@ -224,7 +225,17 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
             <tbody>
               {pageData.length ? pageData.map(e => (
                 <tr key={e.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
-                  <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a' }}>{e.numero_inventario}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <button
+                      onClick={() => { setEquipoEditando(e); setModoSoloLectura(true); setModalOpen(true) }}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                        fontFamily: 'monospace', fontSize: '12px', color: '#c8a44a', textDecoration: 'underline'
+                      }}
+                    >
+                      {e.numero_inventario}
+                    </button>
+                  </td>
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '12px' }}>{e.id_red || '–'}</td>
                   <td style={{ padding: '10px 14px', color: '#e8f0e8', fontSize: '13px' }}>{e.tipo}</td>
                   <td style={{ padding: '10px 14px', color: '#e8f0e8', fontSize: '13px' }}>{[e.marca, e.modelo].filter(Boolean).join(' ') || '–'}</td>
@@ -234,7 +245,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: '5px' }}>
                       {puedeEditar && (
-                        <button onClick={() => { setEquipoEditando(e); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
+                        <button onClick={() => { setEquipoEditando(e); setModoSoloLectura(false); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
                       )}
                       {puedeEditar && e.estado !== 'De baja' && (
                         <button onClick={() => handleBaja(e)} style={btnStyle('#e25555')}>Baja</button>
@@ -271,7 +282,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
       {modalOpen && (
         <ModalEquipo
           equipo={equipoEditando}
-          readOnly={!puedeEditar}
+          readOnly={!puedeEditar || modoSoloLectura}
           onClose={() => { setModalOpen(false); setEquipoEditando(null) }}
           onSave={handleSave}
         />
