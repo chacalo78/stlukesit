@@ -104,7 +104,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
     const observaciones = window.prompt('Observaciones de la devolución (opcional):', '') || null
 
     const { error } = await supabase.from('prestamos').update({
-      fecha_devolucion_real: new Date().toISOString().slice(0, 10),
+      fecha_devolucion_real: new Date().toISOString(),
       observaciones_devolucion: observaciones
     }).eq('id', p.id)
     if (error) { showToast('Error al registrar la devolución', 'error'); return }
@@ -138,6 +138,14 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   const formatDate = (d) => {
     if (!d) return '–'
     return new Date(d + 'T00:00:00').toLocaleDateString('es-AR')
+  }
+
+  const formatDateTime = (d) => {
+    if (!d) return '–'
+    return new Date(d).toLocaleString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
   }
 
   if (loading) return <div style={{ color: '#9ab89c' }}>Cargando...</div>
@@ -213,7 +221,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Equipo', 'Persona', 'Sector', 'Sede', 'Préstamo', 'Devolución est.', 'Estado', 'Acciones'].map(h => (
+                {['Equipo', 'Persona', 'Sector', 'Sede', 'Préstamo', 'Devolución est.', 'Fecha de devolución', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={{ background: '#1c2e1e', padding: '10px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#c8a44a', textTransform: 'uppercase', letterSpacing: '.8px', borderBottom: '1px solid #2a3f2c', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -231,6 +239,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
                     <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{p.equipos?.ubicacion || '–'}</td>
                     <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{formatDate(p.fecha_prestamo)}</td>
                     <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{formatDate(p.fecha_devolucion_estimada)}</td>
+                    <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{formatDateTime(p.fecha_devolucion_real)}</td>
                     <td style={{ padding: '10px 14px' }}>{badgeEstado(estado)}</td>
                     <td style={{ padding: '10px 14px' }}>
                       {puedeEditar && estado !== 'Devuelto' && (
@@ -241,7 +250,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
                 )
               }) : (
                 <tr>
-                  <td colSpan="8" style={{ padding: '40px', textAlign: 'center', color: '#5c7a5e' }}>
+                  <td colSpan="9" style={{ padding: '40px', textAlign: 'center', color: '#5c7a5e' }}>
                     No se encontraron préstamos
                   </td>
                 </tr>
