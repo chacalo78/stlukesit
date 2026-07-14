@@ -73,6 +73,7 @@ function useUserRole(user) {
     // editar equipos ni gestionar préstamos.
     canManageEquipos: isSuperAdmin || isAdmin || isCoordinador,
     canManageUsers: isSuperAdmin || isAdmin,
+    canExportDB: isSuperAdmin || isAdmin,
     canViewDashboard: esOperativo,
     canViewHistorial: esOperativo,
     canViewPrestamos: esOperativo,

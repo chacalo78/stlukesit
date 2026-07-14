@@ -10,6 +10,7 @@ import Reportes from './components/Reportes'
 import Prestamos from './components/Prestamos'
 import Usuarios from './components/Usuarios'
 import FeedbackDev from './components/FeedbackDev'
+import ExportarDB from './components/ExportarDB'
 import useUserRole from './hooks/useUserRole'
 
 function App() {
@@ -17,7 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -97,6 +98,7 @@ function App() {
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} currentUserNombre={nombre} isSuperAdmin={isSuperAdmin} />
         : sinPermiso
+      case 'exportar': return canExportDB ? <ExportarDB /> : sinPermiso
       case 'feedback': return canViewFeedback
         ? <FeedbackDev puedeGestionar={isSuperAdmin} />
         : sinPermiso
@@ -117,6 +119,7 @@ function App() {
       currentSection={currentSection}
       onSectionChange={setCurrentSection}
       canManageUsers={canManageUsers}
+      canExportDB={canExportDB}
       canViewDashboard={canViewDashboard}
       canViewHistorial={canViewHistorial}
       canViewPrestamos={canViewPrestamos}
