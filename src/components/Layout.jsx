@@ -51,8 +51,10 @@ const icons = {
   ),
   exportar: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
-      <path d="M12 3v12M7 10l5 5 5-5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <ellipse cx="9" cy="5" rx="6" ry="2.2" strokeWidth="2" />
+      <path d="M3 5v11c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5" strokeWidth="2" strokeLinecap="round" />
+      <path d="M3 10.5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2" strokeWidth="2" strokeLinecap="round" />
+      <path d="M19 12v8M16 17l3 3 3-3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 }
