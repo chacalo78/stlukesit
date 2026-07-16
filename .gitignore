@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Archivos de importación de datos (contienen info del personal)
+import/
