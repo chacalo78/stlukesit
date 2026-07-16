@@ -6,6 +6,7 @@ function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
   const [form, setForm] = useState({
     equipo_id: '',
     persona: '',
+    email_destinatario: '',
     sector: '',
     fecha_devolucion_estimada: '',
     observaciones_entrega: ''
@@ -92,6 +93,11 @@ function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
           <div>
             <label style={labelStyle}>Persona que retira *</label>
             <input style={inputStyle} value={form.persona} onChange={e => set('persona', e.target.value)} placeholder="Nombre y apellido" />
+          </div>
+          <div>
+            <label style={labelStyle}>Correo electrónico del destinatario</label>
+            <input type="email" style={inputStyle} value={form.email_destinatario} onChange={e => set('email_destinatario', e.target.value)} placeholder="persona@stlukes.edu.ar" />
+            <div style={{ fontSize: '11px', color: '#5c7a5e', marginTop: '4px' }}>Si lo completás, le llega un mail con el detalle del préstamo y la fecha de devolución.</div>
           </div>
           <div>
             <label style={labelStyle}>Sector</label>

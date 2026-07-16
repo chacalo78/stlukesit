@@ -76,6 +76,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
     const payload = {
       equipo_id: form.equipo_id,
       persona: form.persona.trim(),
+      email_destinatario: form.email_destinatario?.trim() || null,
       sector: form.sector || null,
       fecha_devolucion_estimada: form.fecha_devolucion_estimada,
       observaciones_entrega: form.observaciones_entrega || null,
@@ -93,6 +94,20 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
       descripcion: `Equipo prestado a ${payload.persona}${equipo ? ` (${equipo.numero_inventario})` : ''}`,
       usuario: currentUserNombre || 'Sistema'
     })
+
+    if (payload.email_destinatario) {
+      supabase.functions.invoke('notify-prestamo', {
+        body: {
+          email: payload.email_destinatario,
+          persona: payload.persona,
+          numeroInventario: equipo?.numero_inventario || '',
+          tipo: equipo?.tipo || '',
+          marca: equipo?.marca || '',
+          modelo: equipo?.modelo || '',
+          fechaDevolucion: payload.fecha_devolucion_estimada,
+        }
+      }).catch(() => {})
+    }
 
     showToast('Préstamo registrado correctamente')
     setModalOpen(false)
