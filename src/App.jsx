@@ -12,6 +12,7 @@ import Usuarios from './components/Usuarios'
 import FeedbackDev from './components/FeedbackDev'
 import ExportarDB from './components/ExportarDB'
 import Repuestos from './components/Repuestos'
+import Aprobaciones from './components/Aprobaciones'
 import useUserRole from './hooks/useUserRole'
 
 function App() {
@@ -19,7 +20,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
-  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -87,7 +88,9 @@ function App() {
         puedeEditar={canManageEquipos}
         sedeScoped={sedeScoped}
         currentUserNombre={nombre}
+        currentUserEmail={session.user.email}
         currentUserSede={sede}
+        requiresApproval={requiresApproval}
       />
       case 'historial': return canViewHistorial
         ? <Historial sedeScoped={sedeScoped} currentUserSede={sede} />
@@ -101,6 +104,9 @@ function App() {
         : sinPermiso
       case 'exportar': return canExportDB ? <ExportarDB /> : sinPermiso
       case 'repuestos': return canManageRepuestos ? <Repuestos /> : sinPermiso
+      case 'aprobaciones': return canViewAprobaciones
+        ? <Aprobaciones canApproveChanges={canApproveChanges} currentUserEmail={session.user.email} currentUserNombre={nombre} />
+        : sinPermiso
       case 'feedback': return canViewFeedback
         ? <FeedbackDev puedeGestionar={isSuperAdmin} />
         : sinPermiso
@@ -123,6 +129,7 @@ function App() {
       canManageUsers={canManageUsers}
       canExportDB={canExportDB}
       canManageRepuestos={canManageRepuestos}
+      canViewAprobaciones={canViewAprobaciones}
       canViewDashboard={canViewDashboard}
       canViewHistorial={canViewHistorial}
       canViewPrestamos={canViewPrestamos}

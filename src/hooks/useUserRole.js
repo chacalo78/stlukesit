@@ -82,7 +82,14 @@ function useUserRole(user) {
     // Super Admin puede marcar como resuelto/reabrir.
     canViewFeedback: isSuperAdmin || isAdmin,
     // Coordinador y Director solo ven/operan dentro de su propia sede.
-    sedeScoped: isCoordinador || isDirector
+    sedeScoped: isCoordinador || isDirector,
+    // Los cambios de Coordinador sobre equipos (alta/modificación/baja)
+    // quedan pendientes de aprobación en vez de aplicarse directo.
+    requiresApproval: isCoordinador,
+    canApproveChanges: isSuperAdmin || isAdmin,
+    // Ve la sección Aprobaciones: Admin/Super Admin (para resolver) o
+    // Coordinador (para ver el estado de lo que él mismo pidió).
+    canViewAprobaciones: isSuperAdmin || isAdmin || isCoordinador
   }
 }
 

@@ -5,9 +5,10 @@ import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 const PAGE_SIZE = 15
 
-function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }) {
+function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserEmail, currentUserSede, requiresApproval }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
+  const [pendientesPorEquipo, setPendientesPorEquipo] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [filtros, setFiltros] = useState({ q: '', tipo: '', estado: '', sede: '', sector: '' })
@@ -28,6 +29,16 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
     }
     const { data } = await query
     setEquipos(data || [])
+
+    if (requiresApproval) {
+      const { data: pendientes } = await supabase
+        .from('solicitudes_cambio')
+        .select('equipo_id')
+        .eq('estado', 'Pendiente')
+        .not('equipo_id', 'is', null)
+      setPendientesPorEquipo(new Set((pendientes || []).map(p => p.equipo_id)))
+    }
+
     setLoading(false)
   }
 
@@ -74,6 +85,23 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
       return
     }
 
+    if (requiresApproval) {
+      const { error } = await supabase.from('solicitudes_cambio').insert({
+        tipo_accion: equipoEditando ? 'Modificación' : 'Alta',
+        equipo_id: equipoEditando?.id ?? null,
+        datos_propuestos: payload,
+        datos_anteriores: equipoEditando ?? null,
+        solicitado_por: currentUserNombre || 'Sistema',
+        solicitado_por_email: currentUserEmail || null,
+      })
+      if (error) { showToast('Error: ' + error.message, 'error'); return }
+      showToast('Solicitud enviada, pendiente de aprobación de un administrador')
+      setModalOpen(false)
+      setEquipoEditando(null)
+      cargarEquipos()
+      return
+    }
+
     let error
     if (equipoEditando) {
       const res = await supabase.from('equipos').update(payload).eq('id', equipoEditando.id)
@@ -103,6 +131,22 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
   }
 
   async function handleBaja(equipo) {
+    if (requiresApproval) {
+      if (!window.confirm(`¿Enviar solicitud de baja del equipo "${equipo.numero_inventario}" para que la apruebe un administrador?`)) return
+      const { error } = await supabase.from('solicitudes_cambio').insert({
+        tipo_accion: 'Baja',
+        equipo_id: equipo.id,
+        datos_propuestos: { estado: 'De baja' },
+        datos_anteriores: equipo,
+        solicitado_por: currentUserNombre || 'Sistema',
+        solicitado_por_email: currentUserEmail || null,
+      })
+      if (error) { showToast('Error: ' + error.message, 'error'); return }
+      showToast('Solicitud de baja enviada, pendiente de aprobación')
+      cargarEquipos()
+      return
+    }
+
     if (!window.confirm(`¿Confirmar baja del equipo "${equipo.numero_inventario}"?`)) return
     const { error } = await supabase.from('equipos').update({ estado: 'De baja' }).eq('id', equipo.id)
     if (error) { showToast('Error al dar de baja', 'error'); return }
@@ -243,16 +287,31 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '12px' }}>{e.id_red || '–'}</td>
                   <td style={{ padding: '10px 14px', color: '#e8f0e8', fontSize: '13px' }}>{e.tipo}</td>
                   <td style={{ padding: '10px 14px', color: '#e8f0e8', fontSize: '13px' }}>{[e.marca, e.modelo].filter(Boolean).join(' ') || '–'}</td>
-                  <td style={{ padding: '10px 14px' }}>{badgeEstado(e.estado)}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {badgeEstado(e.estado)}
+                      {pendientesPorEquipo.has(e.id) && (
+                        <span style={{ background: 'rgba(200,164,74,.15)', color: '#c8a44a', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' }}>
+                          Cambio pendiente
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{e.ubicacion || '–'}</td>
                   <td style={{ padding: '10px 14px', color: '#9ab89c', fontSize: '13px' }}>{e.sector || '–'}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <div style={{ display: 'flex', gap: '5px' }}>
-                      {puedeEditar && (
-                        <button onClick={() => { setEquipoEditando(e); setModoSoloLectura(false); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
-                      )}
-                      {puedeEditar && e.estado !== 'De baja' && (
-                        <button onClick={() => handleBaja(e)} style={btnStyle('#e25555')}>Baja</button>
+                      {pendientesPorEquipo.has(e.id) ? (
+                        <span style={{ color: '#5c7a5e', fontSize: '11px' }}>Esperando aprobación</span>
+                      ) : (
+                        <>
+                          {puedeEditar && (
+                            <button onClick={() => { setEquipoEditando(e); setModoSoloLectura(false); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
+                          )}
+                          {puedeEditar && e.estado !== 'De baja' && (
+                            <button onClick={() => handleBaja(e)} style={btnStyle('#e25555')}>Baja</button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>
