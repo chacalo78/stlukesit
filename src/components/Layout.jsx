@@ -57,9 +57,15 @@ const icons = {
       <path d="M19 12v8M16 17l3 3 3-3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  repuestos: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M21 7.5v9l-9 5-9-5v-9l9-5 9 5Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, canExportDB, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback }) {
   const [modalPasswordOpen, setModalPasswordOpen] = useState(false)
   const [modalReporteOpen, setModalReporteOpen] = useState(false)
 
@@ -69,6 +75,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
     ...(canViewHistorial ? [{ id: 'historial', label: 'Historial' }] : []),
     { id: 'reportes', label: 'Reportes' },
     ...(canViewPrestamos ? [{ id: 'prestamos', label: 'Préstamos' }] : []),
+    ...(canManageRepuestos ? [{ id: 'repuestos', label: 'Repuestos' }] : []),
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
     ...(canExportDB ? [{ id: 'exportar', label: 'Exportar DB' }] : []),
     ...(canViewFeedback ? [{ id: 'feedback', label: 'Reportes de Usuarios' }] : []),
@@ -132,7 +139,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', usuarios: 'Usuarios', exportar: 'Exportar DB', feedback: 'Reportes de Usuarios' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', repuestos: 'Repuestos', usuarios: 'Usuarios', exportar: 'Exportar DB', feedback: 'Reportes de Usuarios' }[currentSection]}
           </div>
 
           {/* Usuario */}

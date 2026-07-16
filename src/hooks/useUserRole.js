@@ -74,6 +74,7 @@ function useUserRole(user) {
     canManageEquipos: isSuperAdmin || isAdmin || isCoordinador,
     canManageUsers: isSuperAdmin || isAdmin,
     canExportDB: isSuperAdmin || isAdmin,
+    canManageRepuestos: isSuperAdmin || isAdmin,
     canViewDashboard: esOperativo,
     canViewHistorial: esOperativo,
     canViewPrestamos: esOperativo,
