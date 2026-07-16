@@ -10,6 +10,7 @@ import {
   LinearScale,
   BarElement
 } from 'chart.js'
+import { TIPOS_REPORTABLES } from '../constants'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
 
@@ -29,7 +30,7 @@ function Reportes() {
   useEffect(() => {
     async function cargarDatos() {
       const { data } = await supabase.from('equipos').select('*')
-      setEquipos((data || []).filter(e => e.estado !== 'De baja'))
+      setEquipos((data || []).filter(e => e.estado !== 'De baja' && TIPOS_REPORTABLES.includes(e.tipo)))
       setLoading(false)
     }
     cargarDatos()

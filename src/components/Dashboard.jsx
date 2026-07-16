@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
+import { TIPOS_REPORTABLES } from '../constants'
 
 function Dashboard({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
@@ -38,7 +39,7 @@ function Dashboard({ sedeScoped, currentUserSede }) {
         ? (prestamosData || []).filter(p => p.equipos?.ubicacion === currentUserSede)
         : (prestamosData || [])
 
-      setEquipos(equiposData || [])
+      setEquipos((equiposData || []).filter(e => TIPOS_REPORTABLES.includes(e.tipo)))
       setMovimientos(movsFiltrados.slice(0, 5))
       setTodosMovimientos(movsFiltrados)
       setPrestamosActivos(prestamosFiltrados)
