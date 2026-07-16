@@ -92,7 +92,7 @@ function App() {
       case 'historial': return canViewHistorial
         ? <Historial sedeScoped={sedeScoped} currentUserSede={sede} />
         : sinPermiso
-      case 'reportes': return <Reportes />
+      case 'reportes': return <Reportes sedeScoped={sedeScoped} currentUserSede={sede} />
       case 'prestamos': return canViewPrestamos
         ? <Prestamos puedeEditar={canManageEquipos} sedeScoped={sedeScoped} currentUserSede={sede} currentUserNombre={nombre} />
         : sinPermiso

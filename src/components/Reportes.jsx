@@ -23,18 +23,20 @@ const chartOptions = {
   }
 }
 
-function Reportes() {
+function Reportes({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function cargarDatos() {
-      const { data } = await supabase.from('equipos').select('*')
+      let query = supabase.from('equipos').select('*')
+      if (sedeScoped && currentUserSede) query = query.eq('ubicacion', currentUserSede)
+      const { data } = await query
       setEquipos((data || []).filter(e => e.estado !== 'De baja' && TIPOS_REPORTABLES.includes(e.tipo)))
       setLoading(false)
     }
     cargarDatos()
-  }, [])
+  }, [sedeScoped, currentUserSede])
 
   if (loading) return <div style={{ color: '#9ab89c' }}>Cargando...</div>
 
