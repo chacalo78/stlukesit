@@ -59,7 +59,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
 
   function showToast(msg, type = 'success') {
     setToast({ msg, type })
-    setTimeout(() => setToast(null), 3500)
+    setTimeout(() => setToast(null), type === 'error' ? 8000 : 3500)
   }
 
   async function abrirModalNuevo() {
@@ -110,13 +110,14 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
         })
         if (mailError || mailData?.warning) {
           console.error('Error enviando mail de préstamo:', mailError, mailData)
-          showToast('Préstamo registrado, pero no se pudo enviar el mail de aviso', 'error')
+          const detalle = mailData?.detail || mailError?.message || 'motivo desconocido'
+          showToast(`Préstamo registrado, pero no se pudo enviar el mail (${detalle})`, 'error')
         } else {
           showToast('Préstamo registrado correctamente')
         }
       } catch (e) {
         console.error('Error enviando mail de préstamo:', e)
-        showToast('Préstamo registrado, pero no se pudo enviar el mail de aviso', 'error')
+        showToast(`Préstamo registrado, pero no se pudo enviar el mail (${e?.message || 'motivo desconocido'})`, 'error')
       }
     } else {
       showToast('Préstamo registrado correctamente')

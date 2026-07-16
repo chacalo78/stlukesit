@@ -135,9 +135,10 @@ Deno.serve(async (req) => {
     })
 
     return json({ success: true })
-  } catch {
+  } catch (e) {
     // No queremos que un fallo de mail rompa el registro del préstamo,
     // que ya se guardó en la base antes de llamar a esta función.
-    return json({ success: true, warning: 'No se pudo enviar el aviso por mail' })
+    console.error('notify-prestamo error:', e)
+    return json({ success: true, warning: 'No se pudo enviar el aviso por mail', detail: String((e as Error)?.message ?? e) })
   }
 })
