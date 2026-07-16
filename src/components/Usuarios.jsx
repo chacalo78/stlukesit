@@ -113,8 +113,8 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
       showToast('No podés inhabilitar tu propio usuario', 'error')
       return
     }
-    if (!isSuperAdmin && esRolElevado(usuario.rol)) {
-      showToast('Solo un Super Administrador puede inhabilitar cuentas de Administrador', 'error')
+    if (esRolElevado(usuario.rol)) {
+      showToast('Las cuentas de Administrador o Super Administrador no se pueden inhabilitar', 'error')
       return
     }
     const nuevoHabilitado = !usuario.habilitado
@@ -249,9 +249,11 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
                         <>
                           <button onClick={() => { setUsuarioEditando(u); setModalOpen(true) }} style={btnStyle('#9ab89c')}>Editar</button>
                           <button onClick={() => handleBaja(u)} style={btnStyle('#e25555')}>Baja</button>
-                          <button onClick={() => handleToggleHabilitado(u)} style={btnStyle(u.habilitado ? '#f5a623' : '#34c98a')}>
-                            {u.habilitado ? 'Inhabilitar' : 'Habilitar'}
-                          </button>
+                          {!esRolElevado(u.rol) && (
+                            <button onClick={() => handleToggleHabilitado(u)} style={btnStyle(u.habilitado ? '#f5a623' : '#34c98a')}>
+                              {u.habilitado ? 'Inhabilitar' : 'Habilitar'}
+                            </button>
+                          )}
                           <button onClick={() => setUsuarioResetPassword(u)} style={btnStyle('#4f8ef7')}>Restablecer Contraseña</button>
                         </>
                       ) : (

@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
       .single()
 
     const targetEsElevado = targetRole?.rol === 'admin' || targetRole?.rol === 'super_admin'
-    if (targetEsElevado && callerRole?.rol !== 'super_admin') {
-      return json({ error: 'Solo un Super Administrador puede inhabilitar cuentas de Administrador' }, 403)
+    if (targetEsElevado && !habilitado) {
+      return json({ error: 'Las cuentas de Administrador o Super Administrador no se pueden inhabilitar' }, 403)
     }
 
     const { data: usersList, error: listError } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
