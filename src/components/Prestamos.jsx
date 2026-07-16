@@ -96,20 +96,32 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
     })
 
     if (payload.email_destinatario) {
-      supabase.functions.invoke('notify-prestamo', {
-        body: {
-          email: payload.email_destinatario,
-          persona: payload.persona,
-          numeroInventario: equipo?.numero_inventario || '',
-          tipo: equipo?.tipo || '',
-          marca: equipo?.marca || '',
-          modelo: equipo?.modelo || '',
-          fechaDevolucion: payload.fecha_devolucion_estimada,
+      try {
+        const { data: mailData, error: mailError } = await supabase.functions.invoke('notify-prestamo', {
+          body: {
+            email: payload.email_destinatario,
+            persona: payload.persona,
+            numeroInventario: equipo?.numero_inventario || '',
+            tipo: equipo?.tipo || '',
+            marca: equipo?.marca || '',
+            modelo: equipo?.modelo || '',
+            fechaDevolucion: payload.fecha_devolucion_estimada,
+          }
+        })
+        if (mailError || mailData?.warning) {
+          console.error('Error enviando mail de préstamo:', mailError, mailData)
+          showToast('Préstamo registrado, pero no se pudo enviar el mail de aviso', 'error')
+        } else {
+          showToast('Préstamo registrado correctamente')
         }
-      }).catch(() => {})
+      } catch (e) {
+        console.error('Error enviando mail de préstamo:', e)
+        showToast('Préstamo registrado, pero no se pudo enviar el mail de aviso', 'error')
+      }
+    } else {
+      showToast('Préstamo registrado correctamente')
     }
 
-    showToast('Préstamo registrado correctamente')
     setModalOpen(false)
     cargarPrestamos()
   }
