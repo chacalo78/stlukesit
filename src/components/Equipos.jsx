@@ -49,7 +49,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
 
   async function handleSave(form) {
     const payload = {
-      numero_inventario: form.numero_inventario,
+      numero_inventario: form.numero_inventario || null,
       id_red: form.id_red || null,
       tipo: form.tipo,
       marca: form.marca || null,
@@ -69,8 +69,8 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
       observaciones: form.observaciones || null,
     }
 
-    if (!payload.numero_inventario || !payload.tipo) {
-      showToast('N° inventario y tipo son obligatorios', 'error')
+    if (!payload.tipo) {
+      showToast('El tipo es obligatorio', 'error')
       return
     }
 

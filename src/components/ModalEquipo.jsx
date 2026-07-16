@@ -91,7 +91,7 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
             <div style={sectionStyle}>Identificación</div>
             
             <div>
-              <label style={labelStyle}>N° Inventario *</label>
+              <label style={labelStyle}>N° Inventario</label>
               <input style={inputStyle} value={form.numero_inventario} onChange={e => set('numero_inventario', e.target.value)} placeholder="Ej: DSND00001" />
             </div>
             <div>
