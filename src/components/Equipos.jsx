@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
-import { ESTADOS_EQUIPO, SEDES, SECTORES } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 const PAGE_SIZE = 15
 
@@ -188,7 +188,7 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserSede }
         </div>
         <select style={selectStyle} value={filtros.tipo} onChange={e => setFiltros(f => ({ ...f, tipo: e.target.value }))}>
           <option value="">Todos los tipos</option>
-          {['PC', 'Notebook', 'Monitor', 'Impresora', 'Switch', 'UPS', 'Servidor', 'Otro'].map(t => <option key={t}>{t}</option>)}
+          {TIPOS_EQUIPO.map(t => <option key={t}>{t}</option>)}
         </select>
         <select style={selectStyle} value={filtros.estado} onChange={e => setFiltros(f => ({ ...f, estado: e.target.value }))}>
           <option value="">Todos los estados</option>

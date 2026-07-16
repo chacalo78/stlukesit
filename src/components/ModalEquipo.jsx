@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ESTADOS_EQUIPO, SEDES, SECTORES } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -102,7 +102,7 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
               <label style={labelStyle}>Tipo *</label>
               <select style={inputStyle} value={form.tipo} onChange={e => set('tipo', e.target.value)}>
                 <option value="">Seleccioná...</option>
-                {['PC', 'Notebook', 'Monitor', 'Impresora', 'Switch', 'UPS', 'Servidor', 'Otro'].map(t => <option key={t}>{t}</option>)}
+                {TIPOS_EQUIPO.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>

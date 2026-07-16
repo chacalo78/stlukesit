@@ -1,5 +1,7 @@
 export const ESTADOS_EQUIPO = ['Activo', 'En reparación', 'Requiere atención', 'De baja', 'En depósito', 'Prestado']
 
+export const TIPOS_EQUIPO = ['Desktop', 'Notebook', 'Monitor', 'Impresora', 'Switch', 'UPS', 'Servidor', 'Otro']
+
 // Tipos que cuentan como "equipo" en Dashboard y Reportes. El resto
 // (Hardware, Netbook, Tablet, etc.) es equipamiento pero no entra en
 // esas estadísticas — sigue visible normalmente en Equipos/Exportar DB.
