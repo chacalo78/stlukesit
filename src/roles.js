@@ -1,10 +1,12 @@
-export const ROLES = ['super_admin', 'admin', 'coordinador', 'director', 'usuario']
+export const ROLES = ['super_admin', 'admin', 'coordinador', 'director']
 
 export const ROLE_LABELS = {
   super_admin: 'Super Administrador',
   admin: 'Administrador',
   coordinador: 'Coordinador',
   director: 'Director de Sede',
+  // Fallback para cuentas sin rol reconocido (dato viejo/roto) — ya no
+  // es un rol asignable desde la app.
   usuario: 'Usuario'
 }
 
