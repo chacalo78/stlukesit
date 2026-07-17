@@ -1,7 +1,29 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
 import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
+const BADGE_MOVIMIENTO = {
+  'Alta': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
+  'Baja': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
+  'Modificación': { bg: 'rgba(200,164,74,.15)', color: '#c8a44a' },
+  'Traslado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
+  'Préstamo': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
+  'Devolución': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
+}
+
+function formatFechaHora(d) {
+  if (!d) return '–'
+  return new Date(d).toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
 function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
+  const [historial, setHistorial] = useState([])
+  const [historialLoading, setHistorialLoading] = useState(false)
+  const [mostrarHistorial, setMostrarHistorial] = useState(false)
+
   const [form, setForm] = useState({
     numero_inventario: '',
     id_red: '',
@@ -26,6 +48,20 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
   useEffect(() => {
     if (equipo) setForm(equipo)
   }, [equipo])
+
+  useEffect(() => {
+    if (!equipo?.id) { setHistorial([]); return }
+    setHistorialLoading(true)
+    supabase
+      .from('movimientos')
+      .select('*')
+      .eq('equipo_id', equipo.id)
+      .order('fecha', { ascending: false })
+      .then(({ data }) => {
+        setHistorial(data || [])
+        setHistorialLoading(false)
+      })
+  }, [equipo?.id])
 
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
 
@@ -196,6 +232,42 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
             </div>
 
           </fieldset>
+
+          {/* Historial del equipo */}
+          {equipo?.id && (
+            <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #2a3f2c' }}>
+              <button
+                onClick={() => setMostrarHistorial(v => !v)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#4f8ef7', fontSize: '12px', fontWeight: '600' }}
+              >
+                {mostrarHistorial ? '▾' : '▸'} Historial de este equipo {historial.length > 0 ? `(${historial.length})` : ''}
+              </button>
+
+              {mostrarHistorial && (
+                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {historialLoading ? (
+                    <div style={{ color: '#5c7a5e', fontSize: '12px' }}>Cargando...</div>
+                  ) : historial.length ? historial.map(m => {
+                    const b = BADGE_MOVIMIENTO[m.tipo_movimiento] || { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
+                    return (
+                      <div key={m.id} style={{ background: '#1c2e1e', border: '1px solid #2a3f2c', borderRadius: '8px', padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ background: b.bg, color: b.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' }}>
+                            {m.tipo_movimiento}
+                          </span>
+                          <span style={{ color: '#5c7a5e', fontSize: '11px' }}>{formatFechaHora(m.fecha)}</span>
+                        </div>
+                        <div style={{ color: '#e8f0e8', fontSize: '12px' }}>{m.descripcion || '–'}</div>
+                        <div style={{ color: '#5c7a5e', fontSize: '11px', marginTop: '2px' }}>Por {m.usuario || 'Sistema'}</div>
+                      </div>
+                    )
+                  }) : (
+                    <div style={{ color: '#5c7a5e', fontSize: '12px' }}>Sin movimientos registrados.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

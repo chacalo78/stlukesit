@@ -42,11 +42,17 @@ export function identificarEquipo(equipo) {
   return equipo.numero_inventario || [equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ') || 'sin datos'
 }
 
-// Compara valores anteriores vs propuestos y devuelve los nombres
-// (en español) de los campos que cambiaron, para dejar rastro en
-// movimientos/solicitudes de qué dato se tocó.
+// Compara valores anteriores vs propuestos y devuelve, por cada campo
+// que cambió, "Campo: 'antes' → 'después'" — para dejar rastro claro
+// en movimientos/solicitudes de qué dato se tocó y cómo (clave para
+// rastrear reasignaciones de Usuario/Sector, traslados de Sede, etc).
 export function camposModificados(anterior, propuesto) {
   return Object.keys(propuesto)
     .filter(k => propuesto[k] !== (anterior?.[k] ?? null))
-    .map(k => CAMPOS_LABEL_EQUIPO[k] || k)
+    .map(k => {
+      const label = CAMPOS_LABEL_EQUIPO[k] || k
+      const antes = anterior?.[k] ?? '–'
+      const despues = propuesto[k] ?? '–'
+      return `${label}: "${antes}" → "${despues}"`
+    })
 }

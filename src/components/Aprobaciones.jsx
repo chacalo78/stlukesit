@@ -58,7 +58,7 @@ function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }
       error = res.error
       if (!error) {
         const cambios = camposModificados(s.datos_anteriores, s.datos_propuestos)
-        const cambiosTxt = cambios.length ? ` — cambios: ${cambios.join(', ')}` : ''
+        const cambiosTxt = cambios.length ? ` — ${cambios.join('; ')}` : ''
         await supabase.from('movimientos').insert({
           equipo_id: s.equipo_id,
           tipo_movimiento: 'Modificación',

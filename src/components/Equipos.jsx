@@ -110,7 +110,7 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
       error = res.error
       if (!error) {
         const cambios = camposModificados(equipoEditando, payload)
-        const cambiosTxt = cambios.length ? ` — cambios: ${cambios.join(', ')}` : ''
+        const cambiosTxt = cambios.length ? ` — ${cambios.join('; ')}` : ''
         await supabase.from('movimientos').insert({
           equipo_id: equipoEditando.id,
           tipo_movimiento: 'Modificación',
