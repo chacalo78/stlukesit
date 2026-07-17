@@ -336,7 +336,7 @@ function Dashboard({ sedeScoped, currentUserSede, onVerEquipos, onVerPrestamos }
       {sugerencias.length > 0 && (
         <div style={{ background: '#172019', border: '1px solid #2a3f2c', borderRadius: '10px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '600', borderBottom: '1px solid #2a3f2c', color: '#c8a44a' }}>
-            💡 Sugerencias
+            💡 Temas Pendientes
           </div>
           <div style={{ padding: '4px 0' }}>
             {sugerencias.map((s, i) => (
