@@ -10,7 +10,7 @@ import {
   LinearScale,
   BarElement
 } from 'chart.js'
-import { TIPOS_REPORTABLES } from '../constants'
+import { TIPOS_REPORTABLES, SEDES } from '../constants'
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement)
 
@@ -26,6 +26,7 @@ const chartOptions = {
 function Reportes({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [filtroSede, setFiltroSede] = useState('')
 
   useEffect(() => {
     async function cargarDatos() {
@@ -40,21 +41,24 @@ function Reportes({ sedeScoped, currentUserSede }) {
 
   if (loading) return <div style={{ color: '#9ab89c' }}>Cargando...</div>
 
-  // Por tipo
-  const tipos = {}
-  equipos.forEach(e => { tipos[e.tipo] = (tipos[e.tipo] || 0) + 1 })
-
-  // Por estado
-  const estados = { 'Activo': 0, 'En reparación': 0, 'Requiere atención': 0, 'En depósito': 0, 'Prestado': 0 }
-  equipos.forEach(e => { if (estados[e.estado] !== undefined) estados[e.estado]++ })
-
-  // Por sede
+  // Por sede (siempre sobre el total, para el resumen)
   const sedes = {}
   equipos.forEach(e => { const s = e.ubicacion || 'Sin sede'; sedes[s] = (sedes[s] || 0) + 1 })
 
+  // Los gráficos de abajo se filtran por la sede elegida (si hay una)
+  const equiposFiltrados = filtroSede ? equipos.filter(e => e.ubicacion === filtroSede) : equipos
+
+  // Por tipo
+  const tipos = {}
+  equiposFiltrados.forEach(e => { tipos[e.tipo] = (tipos[e.tipo] || 0) + 1 })
+
+  // Por estado
+  const estados = { 'Activo': 0, 'En reparación': 0, 'Requiere atención': 0, 'En depósito': 0, 'Prestado': 0 }
+  equiposFiltrados.forEach(e => { if (estados[e.estado] !== undefined) estados[e.estado]++ })
+
   // Por sector top 10
   const sectores = {}
-  equipos.forEach(e => { if (e.sector) sectores[e.sector] = (sectores[e.sector] || 0) + 1 })
+  equiposFiltrados.forEach(e => { if (e.sector) sectores[e.sector] = (sectores[e.sector] || 0) + 1 })
   const sectTop = Object.entries(sectores).sort((a, b) => b[1] - a[1]).slice(0, 10)
 
   const cardStyle = {
@@ -103,10 +107,32 @@ function Reportes({ sedeScoped, currentUserSede }) {
         </div>
       </div>
 
+      {/* Filtro de sede para los gráficos */}
+      {!sedeScoped && (
+        <div style={{ marginBottom: '16px' }}>
+          <select
+            value={filtroSede}
+            onChange={e => setFiltroSede(e.target.value)}
+            style={{
+              padding: '8px 10px',
+              background: '#1c2e1e',
+              border: '1px solid #2a3f2c',
+              borderRadius: '6px',
+              color: '#e8f0e8',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">Todas las sedes</option>
+            {SEDES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
+
       {/* Gráficos */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
         <div style={cardStyle}>
-          <div style={titleStyle}>Distribución por tipo</div>
+          <div style={titleStyle}>Distribución por tipo{filtroSede ? ` — ${filtroSede}` : ''}</div>
           <div style={{ height: '240px', position: 'relative' }}>
             <Doughnut
               data={{ labels: Object.keys(tipos), datasets: [{ data: Object.values(tipos), backgroundColor: COLORS, borderColor: '#1c2e1e', borderWidth: 2 }] }}
@@ -115,7 +141,7 @@ function Reportes({ sedeScoped, currentUserSede }) {
           </div>
         </div>
         <div style={cardStyle}>
-          <div style={titleStyle}>Distribución por estado</div>
+          <div style={titleStyle}>Distribución por estado{filtroSede ? ` — ${filtroSede}` : ''}</div>
           <div style={{ height: '240px', position: 'relative' }}>
             <Doughnut
               data={{ labels: Object.keys(estados), datasets: [{ data: Object.values(estados), backgroundColor: ['#34c98a', '#f5a623', '#f97316', '#9b6dff'], borderColor: '#1c2e1e', borderWidth: 2 }] }}
@@ -127,7 +153,7 @@ function Reportes({ sedeScoped, currentUserSede }) {
 
       {/* Gráfico por sector */}
       <div style={{ ...cardStyle, marginBottom: '16px' }}>
-        <div style={titleStyle}>Equipos por sector (top 10)</div>
+        <div style={titleStyle}>Equipos por sector (top 10){filtroSede ? ` — ${filtroSede}` : ''}</div>
         <div style={{ height: '280px', position: 'relative' }}>
           <Bar
             data={{ labels: sectTop.map(([s]) => s), datasets: [{ data: sectTop.map(([, n]) => n), backgroundColor: 'rgba(200,164,74,0.7)', borderColor: '#c8a44a', borderWidth: 1, borderRadius: 4 }] }}
