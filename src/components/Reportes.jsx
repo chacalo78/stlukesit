@@ -179,7 +179,7 @@ function Reportes({ sedeScoped, currentUserSede }) {
             color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: generandoPptx ? 'default' : 'pointer'
           }}
         >
-          {generandoPptx ? 'Generando...' : '📊 Descargar PowerPoint'}
+          {generandoPptx ? 'Generando...' : '📊 Descargar Reporte en formato PowerPoint'}
         </button>
       </div>
 
