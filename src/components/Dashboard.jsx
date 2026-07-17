@@ -215,7 +215,7 @@ function Dashboard({ sedeScoped, currentUserSede }) {
 
   // 5. Equipos con datos incompletos (ficha técnica sin completar)
   const datosIncompletos = equipos.filter(e =>
-    (e.tipo === 'PC' || e.tipo === 'Notebook') &&
+    (e.tipo === 'Desktop' || e.tipo === 'Notebook') &&
     e.estado !== 'De baja' &&
     (!e.procesador || !e.ram || !e.disco || !e.ubicacion)
   )
