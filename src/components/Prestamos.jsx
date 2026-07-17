@@ -3,6 +3,8 @@ import { supabase } from '../supabase'
 import ModalPrestamo from './ModalPrestamo'
 import { SEDES } from '../constants'
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function estadoPrestamo(p) {
   if (p.fecha_devolucion_real) return 'Devuelto'
   const hoy = new Date().toISOString().slice(0, 10)
@@ -68,15 +70,20 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   }
 
   async function handleNuevoPrestamo(form) {
-    if (!form.equipo_id || !form.persona?.trim() || !form.fecha_devolucion_estimada) {
-      showToast('Equipo, persona y fecha de devolución son obligatorios', 'error')
+    const email = form.email_destinatario?.trim() || ''
+    if (!form.equipo_id || !form.persona?.trim() || !form.fecha_devolucion_estimada || !email) {
+      showToast('Equipo, persona, fecha de devolución y correo electrónico son obligatorios', 'error')
+      return
+    }
+    if (email.length < 6 || !EMAIL_REGEX.test(email)) {
+      showToast('Ingresá un correo electrónico válido', 'error')
       return
     }
 
     const payload = {
       equipo_id: form.equipo_id,
       persona: form.persona.trim(),
-      email_destinatario: form.email_destinatario?.trim() || null,
+      email_destinatario: email,
       sector: form.sector || null,
       fecha_devolucion_estimada: form.fecha_devolucion_estimada,
       observaciones_entrega: form.observaciones_entrega || null,

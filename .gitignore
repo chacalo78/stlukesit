@@ -26,3 +26,6 @@ dist-ssr
 
 # Archivos de importación de datos (contienen info del personal)
 import/
+
+# Metadata local de `supabase link`
+supabase/.temp/

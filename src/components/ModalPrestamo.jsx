@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { SECTORES } from '../constants'
 
 function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
-  const [busqueda, setBusqueda] = useState('')
   const [form, setForm] = useState({
     equipo_id: '',
     persona: '',
@@ -13,11 +12,6 @@ function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
   })
 
   const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
-
-  const term = busqueda.toLowerCase()
-  const equiposFiltrados = !term ? equiposDisponibles : equiposDisponibles.filter(e =>
-    [e.numero_inventario, e.marca, e.modelo, e.tipo].some(v => v && v.toLowerCase().includes(term))
-  )
 
   const inputStyle = {
     width: '100%',
@@ -68,19 +62,10 @@ function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
         {/* Body */}
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={labelStyle}>Buscar equipo</label>
-            <input
-              style={inputStyle}
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              placeholder="N° inventario, marca, modelo..."
-            />
-          </div>
-          <div>
             <label style={labelStyle}>Equipo *</label>
             <select style={inputStyle} value={form.equipo_id} onChange={e => set('equipo_id', e.target.value)}>
               <option value="">Seleccioná...</option>
-              {equiposFiltrados.map(e => (
+              {equiposDisponibles.map(e => (
                 <option key={e.id} value={e.id}>
                   {e.numero_inventario} — {[e.tipo, e.marca, e.modelo].filter(Boolean).join(' ')}{e.ubicacion ? ` (${e.ubicacion})` : ''}
                 </option>
@@ -95,9 +80,9 @@ function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
             <input style={inputStyle} value={form.persona} onChange={e => set('persona', e.target.value)} placeholder="Nombre y apellido" />
           </div>
           <div>
-            <label style={labelStyle}>Correo electrónico del destinatario</label>
+            <label style={labelStyle}>Correo electrónico del destinatario *</label>
             <input type="email" style={inputStyle} value={form.email_destinatario} onChange={e => set('email_destinatario', e.target.value)} placeholder="persona@stlukes.edu.ar" />
-            <div style={{ fontSize: '11px', color: '#5c7a5e', marginTop: '4px' }}>Si lo completás, le llega un mail con el detalle del préstamo y la fecha de devolución.</div>
+            <div style={{ fontSize: '11px', color: '#5c7a5e', marginTop: '4px' }}>Le llega un mail con el detalle del préstamo y la fecha de devolución.</div>
           </div>
           <div>
             <label style={labelStyle}>Sector</label>
