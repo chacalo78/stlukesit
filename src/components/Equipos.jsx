@@ -5,7 +5,7 @@ import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 const PAGE_SIZE = 15
 
-function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserEmail, currentUserSede, requiresApproval }) {
+function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, currentUserEmail, currentUserSede, requiresApproval }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [pendientesPorEquipo, setPendientesPorEquipo] = useState(new Set())
@@ -160,6 +160,24 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserEmail,
     cargarEquipos()
   }
 
+  async function handleBajaDefinitiva(equipo) {
+    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE el equipo "${equipo.numero_inventario}"? Esta acción no se puede deshacer: se borra el registro y su historial de movimientos.`)) return
+
+    const { error } = await supabase.from('equipos').delete().eq('id', equipo.id)
+    if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return }
+
+    // equipo_id se pone en null (no se puede referenciar un equipo ya
+    // borrado) para que este movimiento sobreviva al ON DELETE CASCADE.
+    await supabase.from('movimientos').insert({
+      equipo_id: null,
+      tipo_movimiento: 'Baja',
+      descripcion: `Equipo eliminado definitivamente: ${equipo.numero_inventario} (${[equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')})`,
+      usuario: currentUserNombre || 'Sistema'
+    })
+    showToast('Equipo eliminado definitivamente')
+    cargarEquipos()
+  }
+
   const badgeEstado = (estado) => {
     const estilos = {
       'Activo': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
@@ -310,6 +328,9 @@ function Equipos({ puedeEditar, sedeScoped, currentUserNombre, currentUserEmail,
                           )}
                           {puedeEditar && e.estado !== 'De baja' && (
                             <button onClick={() => handleBaja(e)} style={btnStyle('#e25555')}>Baja</button>
+                          )}
+                          {puedeEliminar && e.estado === 'De baja' && (
+                            <button onClick={() => handleBajaDefinitiva(e)} style={btnStyle('#e25555')}>Baja Definitiva</button>
                           )}
                         </>
                       )}

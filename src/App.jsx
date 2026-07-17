@@ -86,6 +86,7 @@ function App() {
         : sinPermiso
       case 'equipos': return <Equipos
         puedeEditar={canManageEquipos}
+        puedeEliminar={canApproveChanges}
         sedeScoped={sedeScoped}
         currentUserNombre={nombre}
         currentUserEmail={session.user.email}
