@@ -228,6 +228,17 @@ function Dashboard({ sedeScoped, currentUserSede }) {
     })
   }
 
+  // 6. Equipos sin número de inventario (sin identificación física)
+  const sinIdentificacion = equipos.filter(e => !e.numero_inventario && e.estado !== 'De baja')
+  if (sinIdentificacion.length > 0) {
+    sugerencias.push({
+      icono: '🏷️',
+      color: '#c8a44a',
+      titulo: `${sinIdentificacion.length} equipo${sinIdentificacion.length > 1 ? 's' : ''} sin número de inventario`,
+      detalle: 'No tienen un identificador asignado. Etiquetarlos facilita su seguimiento y evita confusiones con equipos similares.'
+    })
+  }
+
   return (
     <div>
       {/* Stats */}
