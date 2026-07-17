@@ -137,9 +137,10 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   async function handleDevolver(p) {
     if (!window.confirm(`¿Confirmar devolución del equipo "${p.equipos?.numero_inventario}" por parte de ${p.persona}?`)) return
     const observaciones = window.prompt('Observaciones de la devolución (opcional):', '') || null
+    const fechaDevolucionReal = new Date().toISOString()
 
     const { error } = await supabase.from('prestamos').update({
-      fecha_devolucion_real: new Date().toISOString(),
+      fecha_devolucion_real: fechaDevolucionReal,
       observaciones_devolucion: observaciones
     }).eq('id', p.id)
     if (error) { showToast('Error al registrar la devolución', 'error'); return }
@@ -152,7 +153,36 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
       usuario: currentUserNombre || 'Sistema'
     })
 
-    showToast('Devolución registrada')
+    if (p.email_destinatario) {
+      try {
+        const { data: mailData, error: mailError } = await supabase.functions.invoke('notify-prestamo', {
+          body: {
+            accion: 'devolucion',
+            email: p.email_destinatario,
+            persona: p.persona,
+            numeroInventario: p.equipos?.numero_inventario || '',
+            tipo: p.equipos?.tipo || '',
+            marca: p.equipos?.marca || '',
+            modelo: p.equipos?.modelo || '',
+            fechaDevolucion: fechaDevolucionReal,
+            observaciones: observaciones || '',
+          }
+        })
+        if (mailError || mailData?.warning) {
+          console.error('Error enviando mail de devolución:', mailError, mailData)
+          const detalle = mailData?.detail || mailError?.message || 'motivo desconocido'
+          showToast(`Devolución registrada, pero no se pudo enviar el mail (${detalle})`, 'error')
+        } else {
+          showToast('Devolución registrada')
+        }
+      } catch (e) {
+        console.error('Error enviando mail de devolución:', e)
+        showToast(`Devolución registrada, pero no se pudo enviar el mail (${e?.message || 'motivo desconocido'})`, 'error')
+      }
+    } else {
+      showToast('Devolución registrada')
+    }
+
     cargarPrestamos()
   }
 
