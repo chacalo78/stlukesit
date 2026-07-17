@@ -130,14 +130,24 @@ function Dashboard({ sedeScoped, currentUserSede }) {
 
   const sugerencias = []
 
-  // 1. Equipos "De baja" hace mucho sin resolución final
-  const deBajaAntiguos = deBajaList.filter(e => diasDesde(e.updated_at) > 60)
-  if (deBajaAntiguos.length > 0) {
+  // 1. Equipos "De baja"
+  if (deBaja > 0) {
+    const masAntiguoDeBaja = [...deBajaList].sort((a, b) => new Date(a.updated_at) - new Date(b.updated_at))[0]
     sugerencias.push({
       icono: '🗑️',
       color: '#e25555',
-      titulo: `${deBajaAntiguos.length} equipo${deBajaAntiguos.length > 1 ? 's' : ''} dado${deBajaAntiguos.length > 1 ? 's' : ''} de baja hace más de 60 días`,
-      detalle: 'Considerá definir su destino final: donación, descarte responsable o venta, para liberar espacio físico y de inventario.'
+      titulo: `${deBaja} equipo${deBaja > 1 ? 's' : ''} en estado "De baja"`,
+      detalle: `El más antiguo lleva así desde hace ${tiempoTranscurrido(masAntiguoDeBaja.updated_at)}. Considerá definir su destino final: donación, descarte responsable o venta, para liberar espacio físico y de inventario.`
+    })
+  }
+
+  // 1b. Equipos "En reparación"
+  if (enReparacion > 0) {
+    sugerencias.push({
+      icono: '🔧',
+      color: '#f5a623',
+      titulo: `${enReparacion} equipo${enReparacion > 1 ? 's' : ''} en reparación`,
+      detalle: 'Hacé seguimiento de estos equipos para que vuelvan a estar disponibles cuanto antes.'
     })
   }
 
