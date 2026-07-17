@@ -5,7 +5,6 @@ import { TIPOS_REPORTABLES } from '../constants'
 
 function Dashboard({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
-  const [movimientos, setMovimientos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
   const [prestamosActivos, setPrestamosActivos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,9 +18,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       if (restringirSede) equiposQuery = equiposQuery.eq('ubicacion', currentUserSede)
       const { data: equiposData } = await equiposQuery
 
-      // Traemos un set amplio de movimientos: sirve tanto para "Últimos
-      // movimientos" (los primeros 5) como para calcular hace cuánto
-      // cada equipo pasó a "Requiere atención".
+      // Traemos movimientos para calcular hace cuánto cada equipo pasó
+      // a "Requiere atención".
       const { data: allMovsData } = await supabase
         .from('movimientos')
         .select('*, equipos(ubicacion)')
@@ -40,7 +38,6 @@ function Dashboard({ sedeScoped, currentUserSede }) {
         : (prestamosData || [])
 
       setEquipos((equiposData || []).filter(e => TIPOS_REPORTABLES.includes(e.tipo)))
-      setMovimientos(movsFiltrados.slice(0, 5))
       setTodosMovimientos(movsFiltrados)
       setPrestamosActivos(prestamosFiltrados)
       setLoading(false)
@@ -72,44 +69,6 @@ function Dashboard({ sedeScoped, currentUserSede }) {
     { label: 'Requiere atención', value: requiereAtencion, color: '#f97316' },
     { label: 'Préstamos vencidos', value: prestamosVencidos, color: '#e25555' },
   ]
-
-  const badgeMovimiento = (tipo) => {
-    const colores = {
-      'Alta': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
-      'Baja': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
-      'Modificación': { bg: 'rgba(200,164,74,.15)', color: '#c8a44a' },
-      'Traslado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
-      'Préstamo': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
-      'Devolución': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
-      'Alta usuario': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
-      'Modificación usuario': { bg: 'rgba(200,164,74,.15)', color: '#c8a44a' },
-      'Baja usuario': { bg: 'rgba(226,85,85,.15)', color: '#e25555' },
-      'Inhabilitado': { bg: 'rgba(245,166,35,.15)', color: '#f5a623' },
-      'Habilitado': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
-      'Restablecimiento de contraseña': { bg: 'rgba(79,142,247,.15)', color: '#4f8ef7' },
-    }
-    const c = colores[tipo] || { bg: 'rgba(154,184,156,.15)', color: '#9ab89c' }
-    return (
-      <span style={{
-        background: c.bg,
-        color: c.color,
-        padding: '2px 8px',
-        borderRadius: '20px',
-        fontSize: '11px',
-        fontWeight: '500'
-      }}>
-        {tipo}
-      </span>
-    )
-  }
-
-  const formatDate = (d) => {
-    if (!d) return '–'
-    return new Date(d).toLocaleString('es-AR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    })
-  }
 
   // Calcula hace cuánto tiempo, en formato legible (ej "5 días", "2 meses")
   const tiempoTranscurrido = (fecha) => {
@@ -330,57 +289,28 @@ function Dashboard({ sedeScoped, currentUserSede }) {
         </div>
       )}
 
-      {/* Tablas */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-
-        {/* Equipos por tipo */}
-        <div style={{ background: '#172019', border: '1px solid #2a3f2c', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '600', borderBottom: '1px solid #2a3f2c', color: '#c8a44a' }}>
-            Equipos por tipo
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {tiposRows.map(([nombre, cantidad]) => (
-                <tr key={nombre} style={{ borderBottom: '1px solid #2a3f2c' }}>
-                  <td style={{ padding: '8px 14px', color: '#e8f0e8', fontSize: '13px' }}>{nombre}</td>
-                  <td style={{ padding: '8px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ flex: 1, background: '#1c2e1e', borderRadius: '4px', height: '6px' }}>
-                        <div style={{ width: `${total ? Math.round(cantidad / total * 100) : 0}%`, background: '#c8a44a', height: '6px', borderRadius: '4px' }} />
-                      </div>
-                      <span style={{ color: '#9ab89c', fontSize: '12px', minWidth: '24px', textAlign: 'right' }}>{cantidad}</span>
+      {/* Equipos por tipo */}
+      <div style={{ background: '#172019', border: '1px solid #2a3f2c', borderRadius: '10px', overflow: 'hidden', marginBottom: '16px' }}>
+        <div style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '600', borderBottom: '1px solid #2a3f2c', color: '#c8a44a' }}>
+          Equipos por tipo
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {tiposRows.map(([nombre, cantidad]) => (
+              <tr key={nombre} style={{ borderBottom: '1px solid #2a3f2c' }}>
+                <td style={{ padding: '8px 14px', color: '#e8f0e8', fontSize: '13px' }}>{nombre}</td>
+                <td style={{ padding: '8px 14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ flex: 1, background: '#1c2e1e', borderRadius: '4px', height: '6px' }}>
+                      <div style={{ width: `${total ? Math.round(cantidad / total * 100) : 0}%`, background: '#c8a44a', height: '6px', borderRadius: '4px' }} />
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Últimos movimientos */}
-        <div style={{ background: '#172019', border: '1px solid #2a3f2c', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '600', borderBottom: '1px solid #2a3f2c', color: '#c8a44a' }}>
-            Últimos movimientos
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {movimientos.length ? movimientos.map(m => (
-                <tr key={m.id} style={{ borderBottom: '1px solid #2a3f2c' }}>
-                  <td style={{ padding: '8px 14px' }}>{badgeMovimiento(m.tipo_movimiento)}</td>
-                  <td style={{ padding: '8px 14px', color: '#9ab89c', fontSize: '12px' }}>{m.descripcion || '–'}</td>
-                  <td style={{ padding: '8px 14px', color: '#5c7a5e', fontSize: '12px' }}>{formatDate(m.fecha)}</td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="3" style={{ padding: '20px', textAlign: 'center', color: '#5c7a5e' }}>
-                    Sin movimientos aún
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
+                    <span style={{ color: '#9ab89c', fontSize: '12px', minWidth: '24px', textAlign: 'right' }}>{cantidad}</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Sugerencias inteligentes */}
