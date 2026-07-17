@@ -217,14 +217,25 @@ function Dashboard({ sedeScoped, currentUserSede }) {
   const datosIncompletos = equipos.filter(e =>
     (e.tipo === 'Desktop' || e.tipo === 'Notebook') &&
     e.estado !== 'De baja' &&
-    (!e.procesador || !e.ram || !e.disco || !e.ubicacion)
+    (!e.procesador || !e.ram || !e.disco)
   )
   if (datosIncompletos.length > 0) {
     sugerencias.push({
       icono: '📋',
       color: '#4f8ef7',
       titulo: `${datosIncompletos.length} equipo${datosIncompletos.length > 1 ? 's' : ''} con ficha técnica incompleta`,
-      detalle: 'Faltan datos como procesador, RAM, disco o sede. Completarlos mejora la calidad de los reportes.'
+      detalle: 'Faltan datos como procesador, RAM, disco. Completarlos mejora la calidad de los reportes.'
+    })
+  }
+
+  // 5b. Equipos sin sede asignada
+  const sinSede = equipos.filter(e => !e.ubicacion && e.estado !== 'De baja')
+  if (sinSede.length > 0) {
+    sugerencias.push({
+      icono: '📍',
+      color: '#9b6dff',
+      titulo: `${sinSede.length} equipo${sinSede.length > 1 ? 's' : ''} sin sede asignada`,
+      detalle: 'No tienen una sede cargada. Asignarla ayuda a ubicarlos y mejora los filtros por sede en Reportes.'
     })
   }
 
