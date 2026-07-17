@@ -12,7 +12,7 @@ function estadoPrestamo(p) {
   return 'Activo'
 }
 
-function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre }) {
+function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre, idsFiltro, onClearIdsFiltro }) {
   const [prestamos, setPrestamos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,7 +22,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   const [toast, setToast] = useState(null)
 
   useEffect(() => { cargarPrestamos() }, [])
-  useEffect(() => { aplicarFiltros() }, [prestamos, filtros])
+  useEffect(() => { aplicarFiltros() }, [prestamos, filtros, idsFiltro])
 
   async function cargarPrestamos() {
     setLoading(true)
@@ -50,11 +50,13 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   function aplicarFiltros() {
     const { q, estado, sede } = filtros
     const term = q.toLowerCase()
+    const idsSet = idsFiltro ? new Set(idsFiltro) : null
     const result = prestamos.filter(p => {
       const mq = !term || [p.persona, p.equipos?.numero_inventario, p.equipos?.marca, p.equipos?.modelo].some(v => v && v.toLowerCase().includes(term))
       const me = !estado || estadoPrestamo(p) === estado
       const ms = !sede || p.equipos?.ubicacion === sede
-      return mq && me && ms
+      const mi = !idsSet || idsSet.has(p.id)
+      return mq && me && ms && mi
     })
     setFiltered(result)
   }
@@ -246,6 +248,23 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
           color: '#fff'
         }}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Filtro aplicado desde una sugerencia del Dashboard */}
+      {idsFiltro && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px',
+          padding: '10px 14px', background: 'rgba(79,142,247,.08)', border: '1px solid rgba(79,142,247,.25)',
+          borderRadius: '8px', fontSize: '12px', color: '#4f8ef7'
+        }}>
+          Mostrando {idsFiltro.length} préstamo{idsFiltro.length > 1 ? 's' : ''} de una sugerencia del Dashboard.
+          <button
+            onClick={onClearIdsFiltro}
+            style={{ background: 'none', border: 'none', padding: 0, color: '#9ab89c', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Quitar filtro
+          </button>
         </div>
       )}
 

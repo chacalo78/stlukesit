@@ -5,7 +5,7 @@ import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, campo
 
 const PAGE_SIZE = 15
 
-function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, currentUserEmail, currentUserSede, requiresApproval }) {
+function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, currentUserEmail, currentUserSede, requiresApproval, idsFiltro, onClearIdsFiltro }) {
   const [equipos, setEquipos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [pendientesPorEquipo, setPendientesPorEquipo] = useState(new Set())
@@ -18,7 +18,7 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   const [toast, setToast] = useState(null)
 
   useEffect(() => { cargarEquipos() }, [])
-  useEffect(() => { aplicarFiltros() }, [equipos, filtros])
+  useEffect(() => { aplicarFiltros() }, [equipos, filtros, idsFiltro])
 
   async function cargarEquipos() {
     setLoading(true)
@@ -45,9 +45,11 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   function aplicarFiltros() {
     const { q, tipo, estado, sede, sector } = filtros
     const term = q.toLowerCase()
+    const idsSet = idsFiltro ? new Set(idsFiltro) : null
     const result = equipos.filter(e => {
       const mq = !term || [e.numero_inventario, e.id_red, e.marca, e.modelo, e.ubicacion, e.numero_serie, e.usuario, e.sector, e.procesador].some(v => v && v.toLowerCase().includes(term))
-      return mq && (!tipo || e.tipo === tipo) && (!estado || e.estado === estado) && (!sede || e.ubicacion === sede) && (!sector || e.sector === sector)
+      const mi = !idsSet || idsSet.has(e.id)
+      return mq && mi && (!tipo || e.tipo === tipo) && (!estado || e.estado === estado) && (!sede || e.ubicacion === sede) && (!sector || e.sector === sector)
     })
     setFiltered(result)
     setCurrentPage(1)
@@ -237,6 +239,23 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
           color: '#fff'
         }}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Filtro aplicado desde una sugerencia del Dashboard */}
+      {idsFiltro && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px',
+          padding: '10px 14px', background: 'rgba(79,142,247,.08)', border: '1px solid rgba(79,142,247,.25)',
+          borderRadius: '8px', fontSize: '12px', color: '#4f8ef7'
+        }}>
+          Mostrando {idsFiltro.length} equipo{idsFiltro.length > 1 ? 's' : ''} de una sugerencia del Dashboard.
+          <button
+            onClick={onClearIdsFiltro}
+            style={{ background: 'none', border: 'none', padding: 0, color: '#9ab89c', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Quitar filtro
+          </button>
         </div>
       )}
 

@@ -20,6 +20,8 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [equiposIdsFiltro, setEquiposIdsFiltro] = useState(null)
+  const [prestamosIdsFiltro, setPrestamosIdsFiltro] = useState(null)
   const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
@@ -79,10 +81,28 @@ function App() {
 
   const sinPermiso = <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
 
+  // Navegación normal (sidebar): limpia cualquier filtro de IDs que
+  // haya quedado de un link de sugerencia del Dashboard.
+  function cambiarSeccion(section) {
+    setEquiposIdsFiltro(null)
+    setPrestamosIdsFiltro(null)
+    setCurrentSection(section)
+  }
+
+  function irAEquiposFiltrados(ids) {
+    setEquiposIdsFiltro(ids)
+    setCurrentSection('equipos')
+  }
+
+  function irAPrestamosFiltrados(ids) {
+    setPrestamosIdsFiltro(ids)
+    setCurrentSection('prestamos')
+  }
+
   const renderSection = () => {
     switch (currentSection) {
       case 'dashboard': return canViewDashboard
-        ? <Dashboard sedeScoped={sedeScoped} currentUserSede={sede} />
+        ? <Dashboard sedeScoped={sedeScoped} currentUserSede={sede} onVerEquipos={irAEquiposFiltrados} onVerPrestamos={irAPrestamosFiltrados} />
         : sinPermiso
       case 'equipos': return <Equipos
         puedeEditar={canManageEquipos}
@@ -92,13 +112,22 @@ function App() {
         currentUserEmail={session.user.email}
         currentUserSede={sede}
         requiresApproval={requiresApproval}
+        idsFiltro={equiposIdsFiltro}
+        onClearIdsFiltro={() => setEquiposIdsFiltro(null)}
       />
       case 'historial': return canViewHistorial
         ? <Historial sedeScoped={sedeScoped} currentUserSede={sede} />
         : sinPermiso
       case 'reportes': return <Reportes sedeScoped={sedeScoped} currentUserSede={sede} />
       case 'prestamos': return canViewPrestamos
-        ? <Prestamos puedeEditar={canManageEquipos} sedeScoped={sedeScoped} currentUserSede={sede} currentUserNombre={nombre} />
+        ? <Prestamos
+            puedeEditar={canManageEquipos}
+            sedeScoped={sedeScoped}
+            currentUserSede={sede}
+            currentUserNombre={nombre}
+            idsFiltro={prestamosIdsFiltro}
+            onClearIdsFiltro={() => setPrestamosIdsFiltro(null)}
+          />
         : sinPermiso
       case 'usuarios': return canManageUsers
         ? <Usuarios currentUserEmail={session.user.email} currentUserNombre={nombre} isSuperAdmin={isSuperAdmin} />
@@ -126,7 +155,7 @@ function App() {
       role={role}
       sede={sede}
       currentSection={currentSection}
-      onSectionChange={setCurrentSection}
+      onSectionChange={cambiarSeccion}
       canManageUsers={canManageUsers}
       canExportDB={canExportDB}
       canManageRepuestos={canManageRepuestos}

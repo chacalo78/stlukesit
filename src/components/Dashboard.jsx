@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
 import { TIPOS_REPORTABLES } from '../constants'
 
-function Dashboard({ sedeScoped, currentUserSede }) {
+function Dashboard({ sedeScoped, currentUserSede, onVerEquipos, onVerPrestamos }) {
   const [equipos, setEquipos] = useState([])
   const [todosMovimientos, setTodosMovimientos] = useState([])
   const [prestamosActivos, setPrestamosActivos] = useState([])
@@ -49,7 +49,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
 
   const total = equipos.length
   const activos = equipos.filter(e => e.estado === 'Activo').length
-  const enReparacion = equipos.filter(e => e.estado === 'En reparación').length
+  const enReparacionList = equipos.filter(e => e.estado === 'En reparación')
+  const enReparacion = enReparacionList.length
   const deBajaList = equipos.filter(e => e.estado === 'De baja')
   const deBaja = deBajaList.length
   const enDepositoList = equipos.filter(e => e.estado === 'En depósito')
@@ -137,7 +138,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '🗑️',
       color: '#e25555',
       titulo: `${deBaja} equipo${deBaja > 1 ? 's' : ''} en estado "De baja"`,
-      detalle: `El más antiguo lleva así desde hace ${tiempoTranscurrido(masAntiguoDeBaja.updated_at)}. Considerá definir su destino final: donación, descarte responsable o venta, para liberar espacio físico y de inventario.`
+      detalle: `El más antiguo lleva así desde hace ${tiempoTranscurrido(masAntiguoDeBaja.updated_at)}. Considerá definir su destino final: donación, descarte responsable o venta, para liberar espacio físico y de inventario.`,
+      equiposIds: deBajaList.map(e => e.id)
     })
   }
 
@@ -147,7 +149,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '🔧',
       color: '#f5a623',
       titulo: `${enReparacion} equipo${enReparacion > 1 ? 's' : ''} en reparación`,
-      detalle: 'Hacé seguimiento de estos equipos para que vuelvan a estar disponibles cuanto antes.'
+      detalle: 'Hacé seguimiento de estos equipos para que vuelvan a estar disponibles cuanto antes.',
+      equiposIds: enReparacionList.map(e => e.id)
     })
   }
 
@@ -158,7 +161,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '📦',
       color: '#9b6dff',
       titulo: `${enDepositoAntiguos.length} equipo${enDepositoAntiguos.length > 1 ? 's' : ''} en depósito hace más de 45 días`,
-      detalle: 'Evaluá si pueden reasignarse a algún sector que los necesite, en lugar de seguir almacenados sin uso.'
+      detalle: 'Evaluá si pueden reasignarse a algún sector que los necesite, en lugar de seguir almacenados sin uso.',
+      equiposIds: enDepositoAntiguos.map(e => e.id)
     })
   }
 
@@ -169,7 +173,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '⚠️',
       color: '#f97316',
       titulo: `${requiereAtencionCriticos.length} equipo${requiereAtencionCriticos.length > 1 ? 's' : ''} en "Requiere atención" hace más de 2 semanas`,
-      detalle: 'Estos casos llevan tiempo sin resolverse. Priorizá su revisión antes que los más recientes.'
+      detalle: 'Estos casos llevan tiempo sin resolverse. Priorizá su revisión antes que los más recientes.',
+      equiposIds: requiereAtencionCriticos.map(e => e.id)
     })
   }
   // 4. Préstamos vencidos (fecha de devolución estimada ya pasó)
@@ -178,7 +183,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '⏰',
       color: '#e25555',
       titulo: `${prestamosVencidos} préstamo${prestamosVencidos > 1 ? 's' : ''} vencido${prestamosVencidos > 1 ? 's' : ''}`,
-      detalle: 'Hay equipos prestados cuya fecha de devolución estimada ya pasó. Revisá la sección Préstamos para hacer seguimiento.'
+      detalle: 'Hay equipos prestados cuya fecha de devolución estimada ya pasó. Revisá la sección Préstamos para hacer seguimiento.',
+      prestamosIds: prestamosVencidosList.map(p => p.id)
     })
   }
 
@@ -193,7 +199,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '📋',
       color: '#4f8ef7',
       titulo: `${datosIncompletos.length} equipo${datosIncompletos.length > 1 ? 's' : ''} con ficha técnica incompleta`,
-      detalle: 'Faltan datos como procesador, RAM, disco. Completarlos mejora la calidad de los reportes.'
+      detalle: 'Faltan datos como procesador, RAM, disco. Completarlos mejora la calidad de los reportes.',
+      equiposIds: datosIncompletos.map(e => e.id)
     })
   }
 
@@ -204,7 +211,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '📍',
       color: '#9b6dff',
       titulo: `${sinSede.length} equipo${sinSede.length > 1 ? 's' : ''} sin sede asignada`,
-      detalle: 'No tienen una sede cargada. Asignarla ayuda a ubicarlos y mejora los filtros por sede en Reportes.'
+      detalle: 'No tienen una sede cargada. Asignarla ayuda a ubicarlos y mejora los filtros por sede en Reportes.',
+      equiposIds: sinSede.map(e => e.id)
     })
   }
 
@@ -215,7 +223,8 @@ function Dashboard({ sedeScoped, currentUserSede }) {
       icono: '🏷️',
       color: '#c8a44a',
       titulo: `${sinIdentificacion.length} equipo${sinIdentificacion.length > 1 ? 's' : ''} sin número de inventario`,
-      detalle: 'No tienen un identificador asignado. Etiquetarlos facilita su seguimiento y evita confusiones con equipos similares.'
+      detalle: 'No tienen un identificador asignado. Etiquetarlos facilita su seguimiento y evita confusiones con equipos similares.',
+      equiposIds: sinIdentificacion.map(e => e.id)
     })
   }
 
@@ -348,6 +357,22 @@ function Dashboard({ sedeScoped, currentUserSede }) {
                   <div style={{ fontSize: '12px', color: '#9ab89c' }}>
                     {s.detalle}
                   </div>
+                  {s.equiposIds && (
+                    <button
+                      onClick={() => onVerEquipos(s.equiposIds)}
+                      style={{ background: 'none', border: 'none', padding: 0, marginTop: '6px', color: '#4f8ef7', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Ver equipo{s.equiposIds.length > 1 ? 's' : ''} →
+                    </button>
+                  )}
+                  {s.prestamosIds && (
+                    <button
+                      onClick={() => onVerPrestamos(s.prestamosIds)}
+                      style={{ background: 'none', border: 'none', padding: 0, marginTop: '6px', color: '#4f8ef7', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Ver préstamo{s.prestamosIds.length > 1 ? 's' : ''} →
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
