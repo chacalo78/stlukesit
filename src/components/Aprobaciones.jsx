@@ -1,26 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
-
-const CAMPOS_LABEL = {
-  numero_inventario: 'N° Inventario',
-  id_red: 'ID de Red',
-  tipo: 'Tipo',
-  marca: 'Marca',
-  modelo: 'Modelo',
-  numero_serie: 'N° de Serie',
-  estado: 'Estado',
-  procesador: 'Procesador',
-  ram: 'RAM',
-  disco: 'Disco',
-  tipo_disco: 'Tipo de Disco',
-  sistema_operativo: 'Sistema Operativo',
-  ubicacion: 'Sede',
-  sector: 'Sector',
-  usuario: 'Usuario',
-  fecha_adquisicion: 'Fecha de adquisición',
-  garantia_hasta: 'Garantía hasta',
-  observaciones: 'Observaciones',
-}
+import { CAMPOS_LABEL_EQUIPO as CAMPOS_LABEL, identificarEquipo, camposModificados } from '../constants'
 
 function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }) {
   const [solicitudes, setSolicitudes] = useState([])
@@ -70,25 +50,29 @@ function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }
       if (!error) await supabase.from('movimientos').insert({
         equipo_id: res.data.id,
         tipo_movimiento: 'Alta',
-        descripcion: `Equipo dado de alta: ${s.datos_propuestos.numero_inventario} (solicitado por ${s.solicitado_por})`,
+        descripcion: `Equipo dado de alta: ${identificarEquipo(s.datos_propuestos)} (solicitado por ${s.solicitado_por})`,
         usuario: currentUserNombre || 'Sistema'
       })
     } else if (s.tipo_accion === 'Modificación') {
       const res = await supabase.from('equipos').update(s.datos_propuestos).eq('id', s.equipo_id)
       error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        equipo_id: s.equipo_id,
-        tipo_movimiento: 'Modificación',
-        descripcion: `Equipo modificado: ${s.datos_propuestos.numero_inventario} (solicitado por ${s.solicitado_por})`,
-        usuario: currentUserNombre || 'Sistema'
-      })
+      if (!error) {
+        const cambios = camposModificados(s.datos_anteriores, s.datos_propuestos)
+        const cambiosTxt = cambios.length ? ` — cambios: ${cambios.join(', ')}` : ''
+        await supabase.from('movimientos').insert({
+          equipo_id: s.equipo_id,
+          tipo_movimiento: 'Modificación',
+          descripcion: `Equipo modificado: ${identificarEquipo(s.datos_propuestos)}${cambiosTxt} (solicitado por ${s.solicitado_por})`,
+          usuario: currentUserNombre || 'Sistema'
+        })
+      }
     } else {
       const res = await supabase.from('equipos').update({ estado: 'De baja' }).eq('id', s.equipo_id)
       error = res.error
       if (!error) await supabase.from('movimientos').insert({
         equipo_id: s.equipo_id,
         tipo_movimiento: 'Baja',
-        descripcion: `Equipo dado de baja: ${s.datos_anteriores?.numero_inventario || ''} (solicitado por ${s.solicitado_por})`,
+        descripcion: `Equipo dado de baja: ${identificarEquipo(s.datos_anteriores)} (solicitado por ${s.solicitado_por})`,
         usuario: currentUserNombre || 'Sistema'
       })
     }

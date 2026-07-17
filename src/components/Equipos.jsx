@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
-import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, camposModificados } from '../constants'
 
 const PAGE_SIZE = 15
 
@@ -106,19 +106,23 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
     if (equipoEditando) {
       const res = await supabase.from('equipos').update(payload).eq('id', equipoEditando.id)
       error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        equipo_id: equipoEditando.id,
-        tipo_movimiento: 'Modificación',
-        descripcion: `Equipo modificado: ${payload.numero_inventario}`,
-        usuario: currentUserNombre || 'Sistema'
-      })
+      if (!error) {
+        const cambios = camposModificados(equipoEditando, payload)
+        const cambiosTxt = cambios.length ? ` — cambios: ${cambios.join(', ')}` : ''
+        await supabase.from('movimientos').insert({
+          equipo_id: equipoEditando.id,
+          tipo_movimiento: 'Modificación',
+          descripcion: `Equipo modificado: ${identificarEquipo(payload)}${cambiosTxt}`,
+          usuario: currentUserNombre || 'Sistema'
+        })
+      }
     } else {
       const res = await supabase.from('equipos').insert(payload).select().single()
       error = res.error
       if (!error) await supabase.from('movimientos').insert({
         equipo_id: res.data.id,
         tipo_movimiento: 'Alta',
-        descripcion: `Equipo dado de alta: ${payload.numero_inventario}`,
+        descripcion: `Equipo dado de alta: ${identificarEquipo(payload)}`,
         usuario: currentUserNombre || 'Sistema'
       })
     }
@@ -132,7 +136,7 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
 
   async function handleBaja(equipo) {
     if (requiresApproval) {
-      if (!window.confirm(`¿Enviar solicitud de baja del equipo "${equipo.numero_inventario}" para que la apruebe un administrador?`)) return
+      if (!window.confirm(`¿Enviar solicitud de baja del equipo "${identificarEquipo(equipo)}" para que la apruebe un administrador?`)) return
       const { error } = await supabase.from('solicitudes_cambio').insert({
         tipo_accion: 'Baja',
         equipo_id: equipo.id,
@@ -147,13 +151,13 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
       return
     }
 
-    if (!window.confirm(`¿Confirmar baja del equipo "${equipo.numero_inventario}"?`)) return
+    if (!window.confirm(`¿Confirmar baja del equipo "${identificarEquipo(equipo)}"?`)) return
     const { error } = await supabase.from('equipos').update({ estado: 'De baja' }).eq('id', equipo.id)
     if (error) { showToast('Error al dar de baja', 'error'); return }
     await supabase.from('movimientos').insert({
       equipo_id: equipo.id,
       tipo_movimiento: 'Baja',
-      descripcion: `Equipo dado de baja: ${equipo.numero_inventario}`,
+      descripcion: `Equipo dado de baja: ${identificarEquipo(equipo)}`,
       usuario: currentUserNombre || 'Sistema'
     })
     showToast('Equipo dado de baja')
@@ -161,7 +165,7 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   }
 
   async function handleBajaDefinitiva(equipo) {
-    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE el equipo "${equipo.numero_inventario}"? Esta acción no se puede deshacer: se borra el registro y su historial de movimientos.`)) return
+    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE el equipo "${identificarEquipo(equipo)}"? Esta acción no se puede deshacer: se borra el registro y su historial de movimientos.`)) return
 
     const { error } = await supabase.from('equipos').delete().eq('id', equipo.id)
     if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return }
@@ -171,7 +175,7 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
     await supabase.from('movimientos').insert({
       equipo_id: null,
       tipo_movimiento: 'Baja',
-      descripcion: `Equipo eliminado definitivamente: ${equipo.numero_inventario} (${[equipo.tipo, equipo.marca, equipo.modelo].filter(Boolean).join(' ')})`,
+      descripcion: `Equipo eliminado definitivamente: ${identificarEquipo(equipo)}`,
       usuario: currentUserNombre || 'Sistema'
     })
     showToast('Equipo eliminado definitivamente')
