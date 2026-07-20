@@ -1,6 +1,6 @@
 export const ESTADOS_EQUIPO = ['Activo', 'En reparación', 'Requiere atención', 'De baja', 'En depósito', 'Prestado']
 
-export const TIPOS_EQUIPO = ['Desktop', 'Notebook', 'Monitor', 'Impresora', 'Redes', 'UPS', 'Servidor', 'Otro']
+export const TIPOS_EQUIPO = ['Desktop', 'Notebook', 'Monitor', 'Impresora', 'Redes', 'UPS', 'Servidor', 'Proyector', 'Otro']
 
 export const CATEGORIAS_REPUESTO = ['RAM', 'Disco', 'Fuente', 'Procesador', 'Periférico', 'Cable/Adaptador', 'Batería', 'Otro']
 
