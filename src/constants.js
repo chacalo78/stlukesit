@@ -11,7 +11,7 @@ export const TIPOS_REPORTABLES = ['Notebook', 'Desktop', 'Proyector', 'Parlante'
 
 export const SEDES = ['Nordelta', 'HSM', 'Olivos']
 
-export const SECTORES = ['Nivel Inicial', 'Nivel Primario', 'Nivel Secundario', 'Administración', 'IT', 'Intendencia', 'Enfermería', 'Carrito', 'IT Lab Primario', 'IT Lab Secundario', 'Mini IT Lab', 'Secretaría Académica', 'Preceptoría', 'PVAD', 'SST', 'EF']
+export const SECTORES = ['Nivel Inicial', 'Nivel Primario', 'Nivel Secundario', 'Administración', 'IT', 'Intendencia', 'Enfermería', 'Carrito', 'IT Lab Primario', 'IT Lab Secundario', 'Mini IT Lab', 'Secretaría Académica', 'Preceptoría', 'PVAD', 'SST', 'EF', 'Teatro']
 
 export const CAMPOS_LABEL_EQUIPO = {
   numero_inventario: 'N° Inventario',
