@@ -22,7 +22,9 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
 
   async function cargarEquipos() {
     setLoading(true)
-    let query = supabase.from('equipos').select('*').order('numero_inventario', { ascending: true })
+    // 'Baja Definitiva' queda fuera del listado operativo: tiene su
+    // propia sección (Bajas Definitivas).
+    let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva').order('numero_inventario', { ascending: true })
     // Coordinador/Director solo ven su sede
     if (sedeScoped && currentUserSede) {
       query = query.eq('ubicacion', currentUserSede)
@@ -167,20 +169,22 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   }
 
   async function handleBajaDefinitiva(equipo) {
-    if (!window.confirm(`¿ELIMINAR DEFINITIVAMENTE el equipo "${identificarEquipo(equipo)}"? Esta acción no se puede deshacer: se borra el registro y su historial de movimientos.`)) return
+    if (!window.confirm(`¿Dar de baja definitiva al equipo "${identificarEquipo(equipo)}"? Pasa a la sección Bajas Definitivas y deja de aparecer en Equipos, Dashboard y Reportes. Un Super Administrador puede restaurarlo desde ahí.`)) return
 
-    const { error } = await supabase.from('equipos').delete().eq('id', equipo.id)
-    if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return }
+    const { error } = await supabase.from('equipos').update({
+      estado: 'Baja Definitiva',
+      fecha_baja_definitiva: new Date().toISOString(),
+      dado_de_baja_definitiva_por: currentUserNombre || 'Sistema'
+    }).eq('id', equipo.id)
+    if (error) { showToast('Error al dar de baja definitiva: ' + error.message, 'error'); return }
 
-    // equipo_id se pone en null (no se puede referenciar un equipo ya
-    // borrado) para que este movimiento sobreviva al ON DELETE CASCADE.
     await supabase.from('movimientos').insert({
-      equipo_id: null,
-      tipo_movimiento: 'Baja',
-      descripcion: `Equipo eliminado definitivamente: ${identificarEquipo(equipo)}`,
+      equipo_id: equipo.id,
+      tipo_movimiento: 'Baja Definitiva',
+      descripcion: `Equipo dado de baja definitiva: ${identificarEquipo(equipo)}`,
       usuario: currentUserNombre || 'Sistema'
     })
-    showToast('Equipo eliminado definitivamente')
+    showToast('Equipo dado de baja definitiva')
     cargarEquipos()
   }
 

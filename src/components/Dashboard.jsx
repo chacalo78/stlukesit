@@ -14,7 +14,7 @@ function Dashboard({ sedeScoped, currentUserSede, onVerEquipos, onVerPrestamos }
     async function cargarDatos() {
       const restringirSede = sedeScoped && currentUserSede
 
-      let equiposQuery = supabase.from('equipos').select('*')
+      let equiposQuery = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva')
       if (restringirSede) equiposQuery = equiposQuery.eq('ubicacion', currentUserSede)
       const { data: equiposData } = await equiposQuery
 

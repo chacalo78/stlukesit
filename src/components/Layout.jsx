@@ -69,9 +69,15 @@ const icons = {
       <path d="M12 3c-3.5 0-6 1.5-6 1.5v7c0 4.5 3 7.5 6 8.5 3-1 6-4 6-8.5v-7S15.5 3 12 3Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  'bajas-definitivas': (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6h12Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  ),
 }
 
-function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, canExportDB, canManageRepuestos, canViewAprobaciones, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback }) {
+function Layout({ session, nombre, role, sede, children, currentSection, onSectionChange, canManageUsers, canExportDB, canManageRepuestos, canViewAprobaciones, canViewBajasDefinitivas, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback }) {
   const [modalPasswordOpen, setModalPasswordOpen] = useState(false)
   const [modalReporteOpen, setModalReporteOpen] = useState(false)
 
@@ -83,6 +89,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
     ...(canViewPrestamos ? [{ id: 'prestamos', label: 'Préstamos' }] : []),
     ...(canManageRepuestos ? [{ id: 'repuestos', label: 'Repuestos' }] : []),
     ...(canViewAprobaciones ? [{ id: 'aprobaciones', label: 'Aprobaciones' }] : []),
+    ...(canViewBajasDefinitivas ? [{ id: 'bajas-definitivas', label: 'Bajas Definitivas' }] : []),
     ...(canManageUsers ? [{ id: 'usuarios', label: 'Usuarios' }] : []),
     ...(canExportDB ? [{ id: 'exportar', label: 'Exportar DB' }] : []),
     ...(canViewFeedback ? [{ id: 'feedback', label: 'Reportes de Usuarios' }] : []),
@@ -146,7 +153,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div style={{ fontSize: '16px', fontWeight: '600', color: '#e8f0e8' }}>
-            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', repuestos: 'Repuestos', aprobaciones: 'Aprobaciones', usuarios: 'Usuarios', exportar: 'Exportar DB', feedback: 'Reportes de Usuarios' }[currentSection]}
+            {{ dashboard: 'Dashboard', equipos: 'Equipos', historial: 'Historial de movimientos', reportes: 'Reportes y Gráficos', prestamos: 'Préstamos', repuestos: 'Repuestos', aprobaciones: 'Aprobaciones', 'bajas-definitivas': 'Bajas Definitivas', usuarios: 'Usuarios', exportar: 'Exportar DB', feedback: 'Reportes de Usuarios' }[currentSection]}
           </div>
 
           {/* Usuario */}
