@@ -39,7 +39,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   }
 
   async function cargarEquiposDisponibles() {
-    let query = supabase.from('equipos').select('*').order('numero_inventario', { ascending: true })
+    let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva').order('numero_inventario', { ascending: true })
     if (sedeScoped && currentUserSede) {
       query = query.eq('ubicacion', currentUserSede)
     }

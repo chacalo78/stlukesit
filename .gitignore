@@ -29,3 +29,6 @@ import/
 
 # Metadata local de `supabase link`
 supabase/.temp/
+
+# Archivos temporales sueltos de settings locales
+.claude/*.tmp.*

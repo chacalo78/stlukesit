@@ -89,7 +89,9 @@ function useUserRole(user) {
     canApproveChanges: isSuperAdmin || isAdmin,
     // Ve la sección Aprobaciones: Admin/Super Admin (para resolver) o
     // Coordinador (para ver el estado de lo que él mismo pidió).
-    canViewAprobaciones: isSuperAdmin || isAdmin || isCoordinador
+    canViewAprobaciones: isSuperAdmin || isAdmin || isCoordinador,
+    // Bajas Definitivas: exclusivo de Super Administrador.
+    canViewBajasDefinitivas: isSuperAdmin
   }
 }
 

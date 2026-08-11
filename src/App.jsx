@@ -13,6 +13,7 @@ import FeedbackDev from './components/FeedbackDev'
 import ExportarDB from './components/ExportarDB'
 import Repuestos from './components/Repuestos'
 import Aprobaciones from './components/Aprobaciones'
+import BajasDefinitivas from './components/BajasDefinitivas'
 import useUserRole from './hooks/useUserRole'
 
 function App() {
@@ -22,7 +23,7 @@ function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false)
   const [equiposIdsFiltro, setEquiposIdsFiltro] = useState(null)
   const [prestamosIdsFiltro, setPrestamosIdsFiltro] = useState(null)
-  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, loading: roleLoading } = useUserRole(session?.user)
+  const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, canViewBajasDefinitivas, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -137,6 +138,9 @@ function App() {
       case 'aprobaciones': return canViewAprobaciones
         ? <Aprobaciones canApproveChanges={canApproveChanges} currentUserEmail={session.user.email} currentUserNombre={nombre} />
         : sinPermiso
+      case 'bajas-definitivas': return canViewBajasDefinitivas
+        ? <BajasDefinitivas currentUserNombre={nombre} />
+        : sinPermiso
       case 'feedback': return canViewFeedback
         ? <FeedbackDev puedeGestionar={isSuperAdmin} />
         : sinPermiso
@@ -160,6 +164,7 @@ function App() {
       canExportDB={canExportDB}
       canManageRepuestos={canManageRepuestos}
       canViewAprobaciones={canViewAprobaciones}
+      canViewBajasDefinitivas={canViewBajasDefinitivas}
       canViewDashboard={canViewDashboard}
       canViewHistorial={canViewHistorial}
       canViewPrestamos={canViewPrestamos}

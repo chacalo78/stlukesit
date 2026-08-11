@@ -46,7 +46,7 @@ function Reportes({ sedeScoped, currentUserSede }) {
 
   useEffect(() => {
     async function cargarDatos() {
-      let query = supabase.from('equipos').select('*')
+      let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva')
       if (sedeScoped && currentUserSede) query = query.eq('ubicacion', currentUserSede)
       const { data } = await query
       setEquipos((data || []).filter(e => e.estado !== 'De baja' && TIPOS_REPORTABLES.includes(e.tipo)))
