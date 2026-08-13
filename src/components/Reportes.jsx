@@ -38,7 +38,11 @@ const chartOptions = {
 function Reportes({ sedeScoped, currentUserSede }) {
   const [equipos, setEquipos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filtroSede, setFiltroSede] = useState('')
+  // null = pantalla de selección de sede (solo para roles no acotados a
+  // una sede); '' = "Todas las sedes" (vista combinada, lo que antes era
+  // el default); nombre de sede = vista de esa sede sola. Coordinador/
+  // Director no eligen: arrancan directo en '' (su única sede real).
+  const [vistaSede, setVistaSede] = useState(() => sedeScoped ? '' : null)
   const [generandoPptx, setGenerandoPptx] = useState(false)
   const chartTipoRef = useRef(null)
   const chartEstadoRef = useRef(null)
@@ -57,11 +61,89 @@ function Reportes({ sedeScoped, currentUserSede }) {
 
   if (loading) return <div style={{ color: '#9ab89c' }}>Cargando...</div>
 
-  // Por sede (siempre sobre el total, para el resumen)
+  // Por sede (siempre sobre el total, para el resumen y los botones)
   const sedes = {}
   equipos.forEach(e => { const s = e.ubicacion || 'Sin sede'; sedes[s] = (sedes[s] || 0) + 1 })
 
-  // Los gráficos de abajo se filtran por la sede elegida (si hay una)
+  const cardStyle = {
+    background: '#172019',
+    border: '1px solid #2a3f2c',
+    borderRadius: '10px',
+    padding: '20px'
+  }
+
+  const titleStyle = {
+    fontSize: '12px',
+    color: '#5c7a5e',
+    textTransform: 'uppercase',
+    letterSpacing: '.8px',
+    fontWeight: '600',
+    marginBottom: '16px'
+  }
+
+  const resumenPorSede = (
+    <div style={{ marginBottom: '24px' }}>
+      <div style={titleStyle}>Resumen por sede</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+        {Object.entries(sedes).map(([sede, total]) => {
+          const activos = equipos.filter(e => (e.ubicacion || 'Sin sede') === sede && e.estado === 'Activo').length
+          const repos = equipos.filter(e => (e.ubicacion || 'Sin sede') === sede && e.estado === 'En reparación').length
+          return (
+            <div key={sede} style={cardStyle}>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#c8a44a', marginBottom: '12px', borderBottom: '1px solid #2a3f2c', paddingBottom: '8px' }}>{sede}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#5c7a5e', fontSize: '12px' }}>Total</span>
+                <span style={{ fontWeight: '700', color: '#e8f0e8' }}>{total}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ color: '#5c7a5e', fontSize: '12px' }}>Activos</span>
+                <span style={{ color: '#34c98a', fontWeight: '600' }}>{activos}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#5c7a5e', fontSize: '12px' }}>En reparación</span>
+                <span style={{ color: '#f5a623', fontWeight: '600' }}>{repos}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  // Pantalla de entrada: elegir sede antes de ver los gráficos
+  if (vistaSede === null) {
+    const sedeBtnStyle = {
+      flex: '1 1 200px',
+      padding: '20px 18px',
+      background: '#172019',
+      border: '1px solid #2a3f2c',
+      borderRadius: '10px',
+      color: '#e8f0e8',
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+    return (
+      <div>
+        <div style={titleStyle}>Seleccioná una sede para ver sus gráficos</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: '28px' }}>
+          {SEDES.map(s => (
+            <button key={s} onClick={() => setVistaSede(s)} style={sedeBtnStyle}>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#c8a44a', marginBottom: '4px' }}>{s}</div>
+              <div style={{ fontSize: '12px', color: '#5c7a5e' }}>{sedes[s] || 0} equipos</div>
+            </button>
+          ))}
+          <button onClick={() => setVistaSede('')} style={sedeBtnStyle}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#c8a44a', marginBottom: '4px' }}>Todas las sedes</div>
+            <div style={{ fontSize: '12px', color: '#5c7a5e' }}>{equipos.length} equipos</div>
+          </button>
+        </div>
+        {resumenPorSede}
+      </div>
+    )
+  }
+
+  // A partir de acá, vistaSede es '' (todas) o el nombre de una sede puntual
+  const filtroSede = vistaSede
   const equiposFiltrados = filtroSede ? equipos.filter(e => e.ubicacion === filtroSede) : equipos
 
   // Por tipo
@@ -151,26 +233,18 @@ function Reportes({ sedeScoped, currentUserSede }) {
     }
   }
 
-  const cardStyle = {
-    background: '#172019',
-    border: '1px solid #2a3f2c',
-    borderRadius: '10px',
-    padding: '20px'
-  }
-
-  const titleStyle = {
-    fontSize: '12px',
-    color: '#5c7a5e',
-    textTransform: 'uppercase',
-    letterSpacing: '.8px',
-    fontWeight: '600',
-    marginBottom: '16px'
-  }
-
   return (
     <div>
-      {/* Descargar PowerPoint */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '18px' }}>
+      {/* Volver a elegir sede + Descargar PowerPoint */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+        {!sedeScoped ? (
+          <button
+            onClick={() => setVistaSede(null)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#9ab89c', fontSize: '13px' }}
+          >
+            ← Volver a selección de sede
+          </button>
+        ) : <div />}
         <button
           onClick={descargarPptx}
           disabled={generandoPptx}
@@ -183,55 +257,8 @@ function Reportes({ sedeScoped, currentUserSede }) {
         </button>
       </div>
 
-      {/* Cards por sede */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={titleStyle}>Resumen por sede</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-          {Object.entries(sedes).map(([sede, total]) => {
-            const activos = equipos.filter(e => (e.ubicacion || 'Sin sede') === sede && e.estado === 'Activo').length
-            const repos = equipos.filter(e => (e.ubicacion || 'Sin sede') === sede && e.estado === 'En reparación').length
-            return (
-              <div key={sede} style={cardStyle}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#c8a44a', marginBottom: '12px', borderBottom: '1px solid #2a3f2c', paddingBottom: '8px' }}>{sede}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ color: '#5c7a5e', fontSize: '12px' }}>Total</span>
-                  <span style={{ fontWeight: '700', color: '#e8f0e8' }}>{total}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ color: '#5c7a5e', fontSize: '12px' }}>Activos</span>
-                  <span style={{ color: '#34c98a', fontWeight: '600' }}>{activos}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#5c7a5e', fontSize: '12px' }}>En reparación</span>
-                  <span style={{ color: '#f5a623', fontWeight: '600' }}>{repos}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Filtro de sede para los gráficos */}
-      {!sedeScoped && (
-        <div style={{ marginBottom: '16px' }}>
-          <select
-            value={filtroSede}
-            onChange={e => setFiltroSede(e.target.value)}
-            style={{
-              padding: '8px 10px',
-              background: '#1c2e1e',
-              border: '1px solid #2a3f2c',
-              borderRadius: '6px',
-              color: '#e8f0e8',
-              fontSize: '13px',
-              cursor: 'pointer'
-            }}
-          >
-            <option value="">Todas las sedes</option>
-            {SEDES.map(s => <option key={s}>{s}</option>)}
-          </select>
-        </div>
-      )}
+      {/* El resumen por sede solo aporta en la vista combinada; en una sede puntual es redundante */}
+      {filtroSede === '' && resumenPorSede}
 
       {/* Gráficos */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
