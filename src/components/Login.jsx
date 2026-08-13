@@ -162,8 +162,8 @@ function Login() {
             marginBottom: '12px'
           }}>
             Tu cuenta está inhabilitada. Contactá a un administrador del sistema en{' '}
-            <a href="mailto:tecnico@colegiosanlucas.edu.ar" style={{ color: '#e25555', fontWeight: '600' }}>
-              tecnico@colegiosanlucas.edu.ar
+            <a href="mailto:soporte.tecnico@colegiosanlucas.edu.ar" style={{ color: '#e25555', fontWeight: '600' }}>
+              soporte.tecnico@colegiosanlucas.edu.ar
             </a> para más información.
           </div>
         )}
