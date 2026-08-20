@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalEquipo from './ModalEquipo'
-import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, camposModificados } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, camposModificados, leerBorradorEquipo } from '../constants'
 
 const PAGE_SIZE = 15
 
@@ -12,8 +12,14 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [filtros, setFiltros] = useState({ q: '', tipo: '', estado: '', sede: '', sector: '' })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [equipoEditando, setEquipoEditando] = useState(null)
+  // Si quedó un borrador de ModalEquipo en sessionStorage (ver
+  // constants.js), es porque la página se recargó sola con el modal
+  // abierto (típico de "Memory Saver" de Chrome descartando la pestaña
+  // en segundo plano) — se reabre automáticamente con lo ya tipeado en
+  // vez de perderlo.
+  const [borradorInicial] = useState(() => leerBorradorEquipo())
+  const [modalOpen, setModalOpen] = useState(!!borradorInicial)
+  const [equipoEditando, setEquipoEditando] = useState(borradorInicial?.form?.id ? borradorInicial.form : null)
   const [modoSoloLectura, setModoSoloLectura] = useState(false)
   const [toast, setToast] = useState(null)
 

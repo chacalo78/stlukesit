@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, leerBorradorEquipo, guardarBorradorEquipo, limpiarBorradorEquipo } from '../constants'
 
 const BADGE_MOVIMIENTO = {
   'Alta': { bg: 'rgba(52,201,138,.15)', color: '#34c98a' },
@@ -24,7 +24,7 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
   const [historialLoading, setHistorialLoading] = useState(false)
   const [mostrarHistorial, setMostrarHistorial] = useState(false)
 
-  const [form, setForm] = useState({
+  const blanco = {
     numero_inventario: '',
     id_red: '',
     tipo: '',
@@ -43,11 +43,35 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
     fecha_adquisicion: '',
     garantia_hasta: '',
     observaciones: ''
+  }
+
+  const [form, setForm] = useState(() => {
+    // Si hay un borrador guardado (la página se recargó sola con el
+    // modal abierto), se prioriza sobre lo que venga por props: es lo
+    // último que el usuario había tipeado.
+    if (!readOnly) {
+      const borrador = leerBorradorEquipo()
+      if (borrador) return borrador.form
+    }
+    return equipo || blanco
   })
 
+  // El primer render ya inicializa `form` (arriba, desde el borrador o
+  // desde `equipo`). Este efecto es solo para el caso de que el modal
+  // ya esté abierto y se le pase un `equipo` distinto — no debe pisar
+  // el borrador recién restaurado en el montaje inicial.
+  const montado = useRef(false)
   useEffect(() => {
+    if (!montado.current) { montado.current = true; return }
     if (equipo) setForm(equipo)
   }, [equipo])
+
+  // Se limpia el borrador al desmontar (cancelar o guardar con éxito).
+  // Si en cambio el guardado falla, el modal sigue abierto y este efecto
+  // no llega a correr, así que el borrador se conserva para reintentar.
+  useEffect(() => {
+    return () => { if (!readOnly) limpiarBorradorEquipo() }
+  }, [])
 
   useEffect(() => {
     if (!equipo?.id) { setHistorial([]); return }
@@ -63,7 +87,11 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
       })
   }, [equipo?.id])
 
-  const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  const set = (field, value) => setForm(f => {
+    const nuevo = { ...f, [field]: value }
+    if (!readOnly) guardarBorradorEquipo(nuevo)
+    return nuevo
+  })
 
   const inputStyle = {
     width: '100%',

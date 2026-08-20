@@ -56,3 +56,37 @@ export function camposModificados(anterior, propuesto) {
       return `${label}: "${antes}" → "${despues}"`
     })
 }
+
+// Borrador del modal de Equipos en sessionStorage: el navegador (Chrome
+// "Memory Saver" y similares) puede descartar y recargar una pestaña en
+// segundo plano, lo que reinicia todo el estado de React y cierra
+// cualquier modal abierto. Guardando lo tipeado acá, ModalEquipo/Equipos
+// pueden detectar ese caso al volver a montar y reabrir el modal con los
+// datos que ya se habían cargado, en vez de perderlos.
+const EQUIPO_MODAL_DRAFT_KEY = 'stlukesit_equipo_modal_draft'
+
+export function leerBorradorEquipo() {
+  try {
+    const raw = sessionStorage.getItem(EQUIPO_MODAL_DRAFT_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function guardarBorradorEquipo(form) {
+  try {
+    sessionStorage.setItem(EQUIPO_MODAL_DRAFT_KEY, JSON.stringify({ form }))
+  } catch {
+    // sessionStorage no disponible (modo privado, cuota llena, etc.): se
+    // pierde el auto-guardado pero el formulario sigue funcionando igual.
+  }
+}
+
+export function limpiarBorradorEquipo() {
+  try {
+    sessionStorage.removeItem(EQUIPO_MODAL_DRAFT_KEY)
+  } catch {
+    // ver comentario en guardarBorradorEquipo
+  }
+}
