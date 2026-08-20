@@ -149,7 +149,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
           borderTop: '1px solid #2a3f2c',
           color: '#5c7a5e', fontSize: '11px'
         }}>
-          v{APP_VERSION}
+          Versión: {APP_VERSION}
         </div>
 
       </div>
