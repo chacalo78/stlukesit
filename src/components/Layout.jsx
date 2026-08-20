@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import { ROLE_LABELS, ROLE_BADGE } from '../roles'
 import ModalCambiarPassword from './ModalCambiarPassword'
 import ModalReportarProblema from './ModalReportarProblema'
+import { APP_VERSION } from '../version'
 
 const icons = {
   dashboard: (
@@ -140,6 +141,15 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
               {item.label}
             </div>
           ))}
+        </div>
+
+        {/* Versión */}
+        <div style={{
+          marginTop: 'auto', padding: '10px 14px',
+          borderTop: '1px solid #2a3f2c',
+          color: '#5c7a5e', fontSize: '11px'
+        }}>
+          v{APP_VERSION}
         </div>
 
       </div>
