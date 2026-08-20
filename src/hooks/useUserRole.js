@@ -44,7 +44,14 @@ function useUserRole(user) {
       setLoading(false)
     }
     cargarRol()
-  }, [user])
+    // Se usa user?.id (no el objeto user) como dependencia: Supabase
+    // dispara onAuthStateChange con un objeto de sesión nuevo cada vez
+    // que refresca el token (por ej. al volver a la pestaña), aunque
+    // sea el mismo usuario. Si dependiéramos del objeto completo, este
+    // efecto se repetiría en cada refresh, poniendo loading en true y
+    // haciendo que App.jsx desmonte toda la sección actual (cerrando
+    // cualquier modal abierto) sin necesidad real.
+  }, [user?.id])
 
   const isSuperAdmin = role === 'super_admin'
   const isAdmin = role === 'admin'
