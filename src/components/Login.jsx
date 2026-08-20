@@ -24,7 +24,7 @@ const buttonStyle = {
   letterSpacing: '.3px'
 }
 
-function Login() {
+function Login({ sesionExpirada }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -148,6 +148,20 @@ function Login() {
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               style={inputStyle}
             />
+          </div>
+        )}
+
+        {sesionExpirada && (
+          <div style={{
+            background: 'rgba(200,164,74,.1)',
+            border: '1px solid rgba(200,164,74,.3)',
+            color: '#c8a44a',
+            padding: '10px 14px',
+            borderRadius: '6px',
+            fontSize: '13px',
+            marginBottom: '12px'
+          }}>
+            Tu sesión se cerró por inactividad. Ingresá de nuevo para continuar.
           </div>
         )}
 

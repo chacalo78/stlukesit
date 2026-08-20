@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="/stlukesit/favicon.ico" />
+  <title>404 — Página no encontrada · St. Luke's College</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a150b 0%, #1a3d1c 50%, #0f1a10 100%);
+    }
+    .card {
+      background: rgba(21,33,22,0.95);
+      border: 1px solid #3a5a3d;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      padding: 40px 36px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .logo {
+      width: 130px;
+      height: auto;
+      margin-bottom: 18px;
+      filter: drop-shadow(0 4px 12px rgba(200,164,74,0.3));
+    }
+    .icon-wrap {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      background: rgba(200,164,74,.1);
+      border: 1px solid rgba(200,164,74,.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .code {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      line-height: 1;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, #c8a44a, #a8842a);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1 {
+      color: #e8f0e8;
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 10px;
+      letter-spacing: .3px;
+    }
+    p {
+      color: #9ab89c;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #3a5a3d, transparent);
+      margin: 22px 0;
+    }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #c8a44a, #a8842a);
+      color: #1a1a0a;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .footer {
+      margin-top: 20px;
+      color: #5c7a5e;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="/stlukesit/logo.png" alt="St. Luke's College" />
+
+    <div class="icon-wrap">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8a44a" stroke-width="2">
+        <circle cx="12" cy="12" r="9" stroke-linecap="round" />
+        <path d="M9.3 9.2a2.7 2.7 0 0 1 5.2 1c0 1.6-2.2 1.8-2.2 3.3" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="12" cy="16.7" r="0.9" fill="#c8a44a" stroke="none" />
+      </svg>
+    </div>
+
+    <p class="code">404</p>
+    <h1>Página no encontrada</h1>
+    <p>La página que buscás no existe o fue movida. Verificá el enlace o volvé al inicio del sistema.</p>
+
+    <div class="divider"></div>
+
+    <a class="btn" href="/stlukesit/">Volver al inicio</a>
+
+    <div class="footer">St. Luke's College — Sistema de IT</div>
+  </div>
+</body>
+</html>

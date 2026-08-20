@@ -15,12 +15,14 @@ import Repuestos from './components/Repuestos'
 import Aprobaciones from './components/Aprobaciones'
 import BajasDefinitivas from './components/BajasDefinitivas'
 import useUserRole from './hooks/useUserRole'
+import useIdleLogout from './hooks/useIdleLogout'
 
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentSection, setCurrentSection] = useState('dashboard')
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [sesionExpirada, setSesionExpirada] = useState(false)
   const [equiposIdsFiltro, setEquiposIdsFiltro] = useState(null)
   const [prestamosIdsFiltro, setPrestamosIdsFiltro] = useState(null)
   const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, canViewBajasDefinitivas, loading: roleLoading } = useUserRole(session?.user)
@@ -38,6 +40,15 @@ function App() {
       setSession(session)
     })
   }, [])
+
+  // Cierra la sesión sola tras 15 minutos sin actividad del usuario.
+  useIdleLogout(!!session, () => setSesionExpirada(true))
+
+  // Si se loguea de nuevo, se limpia el aviso de "sesión expirada" para
+  // que no reaparezca en un cierre de sesión posterior no relacionado.
+  useEffect(() => {
+    if (session) setSesionExpirada(false)
+  }, [session])
 
   useEffect(() => {
     // role !== null evita un frame intermedio donde roleLoading ya
@@ -78,7 +89,7 @@ function App() {
     </div>
   )
 
-  if (!session) return <Login />
+  if (!session) return <Login sesionExpirada={sesionExpirada} />
 
   const sinPermiso = <div style={{ color: '#9ab89c' }}>No tenés permisos para ver esta sección.</div>
 

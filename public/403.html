@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/x-icon" href="/stlukesit/favicon.ico" />
+  <title>403 — Acceso denegado · St. Luke's College</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a150b 0%, #1a3d1c 50%, #0f1a10 100%);
+    }
+    .card {
+      background: rgba(21,33,22,0.95);
+      border: 1px solid #3a5a3d;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      padding: 40px 36px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .logo {
+      width: 130px;
+      height: auto;
+      margin-bottom: 18px;
+      filter: drop-shadow(0 4px 12px rgba(200,164,74,0.3));
+    }
+    .icon-wrap {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      background: rgba(226,85,85,.1);
+      border: 1px solid rgba(226,85,85,.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .code {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      line-height: 1;
+      margin: 0 0 8px;
+      background: linear-gradient(135deg, #c8a44a, #a8842a);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1 {
+      color: #e8f0e8;
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 10px;
+      letter-spacing: .3px;
+    }
+    p {
+      color: #9ab89c;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .contact {
+      background: rgba(226,85,85,.1);
+      border: 1px solid rgba(226,85,85,.3);
+      color: #e25555;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      margin: 0 0 24px;
+      text-align: left;
+    }
+    .contact a { color: #e25555; font-weight: 600; }
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #3a5a3d, transparent);
+      margin: 22px 0;
+    }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #c8a44a, #a8842a);
+      color: #1a1a0a;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .footer {
+      margin-top: 20px;
+      color: #5c7a5e;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="/stlukesit/logo.png" alt="St. Luke's College" />
+
+    <div class="icon-wrap">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e25555" stroke-width="2">
+        <path d="M12 3c-3.5 0-6 1.5-6 1.5v7c0 4.5 3 7.5 6 8.5 3-1 6-4 6-8.5v-7S15.5 3 12 3Z" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M9.5 9.8l5 4.4M14.5 9.8l-5 4.4" stroke-linecap="round" />
+      </svg>
+    </div>
+
+    <p class="code">403</p>
+    <h1>Acceso denegado</h1>
+    <p>No tenés permisos para acceder a esta sección del sistema.</p>
+
+    <div class="contact">
+      Si creés que esto es un error, contactá a un administrador en
+      <a href="mailto:soporte.tecnico@colegiosanlucas.edu.ar">soporte.tecnico@colegiosanlucas.edu.ar</a>.
+    </div>
+
+    <div class="divider"></div>
+
+    <a class="btn" href="/stlukesit/">Volver al inicio</a>
+
+    <div class="footer">St. Luke's College — Sistema de IT</div>
+  </div>
+</body>
+</html>
