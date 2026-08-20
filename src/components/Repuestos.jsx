@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalRepuesto from './ModalRepuesto'
-import { CATEGORIAS_REPUESTO, SEDES } from '../constants'
+import { CATEGORIAS_REPUESTO, SEDES, leerBorradorRepuesto } from '../constants'
 
 function Repuestos() {
   const [repuestos, setRepuestos] = useState([])
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState({ q: '', categoria: '', sede: '' })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [repuestoEditando, setRepuestoEditando] = useState(null)
+  // Si quedó un borrador de ModalRepuesto (la página se recargó sola con
+  // el modal abierto, ver constants.js), se reabre automáticamente.
+  const [borradorInicial] = useState(() => leerBorradorRepuesto())
+  const [modalOpen, setModalOpen] = useState(!!borradorInicial)
+  const [repuestoEditando, setRepuestoEditando] = useState(borradorInicial?.form?.id ? borradorInicial.form : null)
   const [toast, setToast] = useState(null)
 
   useEffect(() => { cargarRepuestos() }, [])

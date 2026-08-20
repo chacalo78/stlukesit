@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabase'
 import ModalPrestamo from './ModalPrestamo'
-import { SEDES } from '../constants'
+import { SEDES, leerBorradorPrestamo } from '../constants'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -17,11 +17,19 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState({ q: '', estado: '', sede: '' })
-  const [modalOpen, setModalOpen] = useState(false)
+  // Si quedó un borrador de ModalPrestamo (la página se recargó sola con
+  // el modal abierto, ver constants.js), se reabre automáticamente —
+  // pero además de la lista de préstamos hay que recargar los equipos
+  // disponibles para el <select>, que abrirModalNuevo normalmente carga
+  // antes de abrir el modal.
+  const [modalOpen, setModalOpen] = useState(() => !!leerBorradorPrestamo())
   const [equiposDisponibles, setEquiposDisponibles] = useState([])
   const [toast, setToast] = useState(null)
 
-  useEffect(() => { cargarPrestamos() }, [])
+  useEffect(() => {
+    cargarPrestamos()
+    if (modalOpen) cargarEquiposDisponibles()
+  }, [])
   useEffect(() => { aplicarFiltros() }, [prestamos, filtros, idsFiltro])
 
   async function cargarPrestamos() {

@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 import ModalUsuario from './ModalUsuario'
 import ModalResetPassword from './ModalResetPassword'
 import { ROLES, ROLE_LABELS, ROLE_BADGE } from '../roles'
+import { leerBorradorUsuario } from '../constants'
 
 const esRolElevado = (rol) => rol === 'admin' || rol === 'super_admin'
 
@@ -11,8 +12,11 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
   const [filtered, setFiltered] = useState([])
   const [loading, setLoading] = useState(true)
   const [filtros, setFiltros] = useState({ q: '', rol: '', sede: '' })
-  const [modalOpen, setModalOpen] = useState(false)
-  const [usuarioEditando, setUsuarioEditando] = useState(null)
+  // Si quedó un borrador de ModalUsuario (la página se recargó sola con
+  // el modal abierto, ver constants.js), se reabre automáticamente.
+  const [borradorInicial] = useState(() => leerBorradorUsuario())
+  const [modalOpen, setModalOpen] = useState(!!borradorInicial)
+  const [usuarioEditando, setUsuarioEditando] = useState(borradorInicial?.form?.id ? borradorInicial.form : null)
   const [usuarioResetPassword, setUsuarioResetPassword] = useState(null)
   const [toast, setToast] = useState(null)
 

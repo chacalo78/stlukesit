@@ -57,36 +57,55 @@ export function camposModificados(anterior, propuesto) {
     })
 }
 
-// Borrador del modal de Equipos en sessionStorage: el navegador (Chrome
-// "Memory Saver" y similares) puede descartar y recargar una pestaña en
-// segundo plano, lo que reinicia todo el estado de React y cierra
-// cualquier modal abierto. Guardando lo tipeado acá, ModalEquipo/Equipos
-// pueden detectar ese caso al volver a montar y reabrir el modal con los
-// datos que ya se habían cargado, en vez de perderlos.
-const EQUIPO_MODAL_DRAFT_KEY = 'stlukesit_equipo_modal_draft'
-
-export function leerBorradorEquipo() {
+// Borradores de modales de alta/edición en sessionStorage: el navegador
+// (Chrome "Memory Saver" y similares) puede descartar y recargar una
+// pestaña en segundo plano, lo que reinicia todo el estado de React y
+// cierra cualquier modal abierto. Guardando lo tipeado acá, cada modal
+// (junto con su pantalla contenedora) puede detectar ese caso al volver
+// a montar y reabrirse con los datos que ya se habían cargado, en vez
+// de perderlos. No se usa para datos sensibles (contraseñas).
+function leerBorrador(key) {
   try {
-    const raw = sessionStorage.getItem(EQUIPO_MODAL_DRAFT_KEY)
+    const raw = sessionStorage.getItem(key)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
 
-export function guardarBorradorEquipo(form) {
+function guardarBorrador(key, form) {
   try {
-    sessionStorage.setItem(EQUIPO_MODAL_DRAFT_KEY, JSON.stringify({ form }))
+    sessionStorage.setItem(key, JSON.stringify({ form }))
   } catch {
     // sessionStorage no disponible (modo privado, cuota llena, etc.): se
     // pierde el auto-guardado pero el formulario sigue funcionando igual.
   }
 }
 
-export function limpiarBorradorEquipo() {
+function limpiarBorrador(key) {
   try {
-    sessionStorage.removeItem(EQUIPO_MODAL_DRAFT_KEY)
+    sessionStorage.removeItem(key)
   } catch {
-    // ver comentario en guardarBorradorEquipo
+    // ver comentario en guardarBorrador
   }
 }
+
+const EQUIPO_MODAL_DRAFT_KEY = 'stlukesit_equipo_modal_draft'
+export const leerBorradorEquipo = () => leerBorrador(EQUIPO_MODAL_DRAFT_KEY)
+export const guardarBorradorEquipo = (form) => guardarBorrador(EQUIPO_MODAL_DRAFT_KEY, form)
+export const limpiarBorradorEquipo = () => limpiarBorrador(EQUIPO_MODAL_DRAFT_KEY)
+
+const PRESTAMO_MODAL_DRAFT_KEY = 'stlukesit_prestamo_modal_draft'
+export const leerBorradorPrestamo = () => leerBorrador(PRESTAMO_MODAL_DRAFT_KEY)
+export const guardarBorradorPrestamo = (form) => guardarBorrador(PRESTAMO_MODAL_DRAFT_KEY, form)
+export const limpiarBorradorPrestamo = () => limpiarBorrador(PRESTAMO_MODAL_DRAFT_KEY)
+
+const REPUESTO_MODAL_DRAFT_KEY = 'stlukesit_repuesto_modal_draft'
+export const leerBorradorRepuesto = () => leerBorrador(REPUESTO_MODAL_DRAFT_KEY)
+export const guardarBorradorRepuesto = (form) => guardarBorrador(REPUESTO_MODAL_DRAFT_KEY, form)
+export const limpiarBorradorRepuesto = () => limpiarBorrador(REPUESTO_MODAL_DRAFT_KEY)
+
+const USUARIO_MODAL_DRAFT_KEY = 'stlukesit_usuario_modal_draft'
+export const leerBorradorUsuario = () => leerBorrador(USUARIO_MODAL_DRAFT_KEY)
+export const guardarBorradorUsuario = (form) => guardarBorrador(USUARIO_MODAL_DRAFT_KEY, form)
+export const limpiarBorradorUsuario = () => limpiarBorrador(USUARIO_MODAL_DRAFT_KEY)

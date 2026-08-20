@@ -1,17 +1,31 @@
-import { useState } from 'react'
-import { SECTORES } from '../constants'
+import { useState, useEffect } from 'react'
+import { SECTORES, leerBorradorPrestamo, guardarBorradorPrestamo, limpiarBorradorPrestamo } from '../constants'
 
 function ModalPrestamo({ equiposDisponibles, onClose, onSave }) {
-  const [form, setForm] = useState({
-    equipo_id: '',
-    persona: '',
-    email_destinatario: '',
-    sector: '',
-    fecha_devolucion_estimada: '',
-    observaciones_entrega: ''
+  const [form, setForm] = useState(() => {
+    // Si hay un borrador guardado (la página se recargó sola con el
+    // modal abierto), se prioriza: es lo último que el usuario tipeó.
+    const borrador = leerBorradorPrestamo()
+    return borrador ? borrador.form : {
+      equipo_id: '',
+      persona: '',
+      email_destinatario: '',
+      sector: '',
+      fecha_devolucion_estimada: '',
+      observaciones_entrega: ''
+    }
   })
 
-  const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  // Se limpia el borrador al desmontar (cancelar o guardar con éxito).
+  useEffect(() => {
+    return () => limpiarBorradorPrestamo()
+  }, [])
+
+  const set = (field, value) => setForm(f => {
+    const nuevo = { ...f, [field]: value }
+    guardarBorradorPrestamo(nuevo)
+    return nuevo
+  })
 
   const inputStyle = {
     width: '100%',

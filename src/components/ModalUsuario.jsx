@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ROLE_LABELS } from '../roles'
+import { leerBorradorUsuario, guardarBorradorUsuario, limpiarBorradorUsuario } from '../constants'
 
 const SEDES = ['Nordelta', 'HSM', 'Olivos']
 
@@ -8,18 +9,40 @@ function ModalUsuario({ usuario, onClose, onSave, canManageAdmins }) {
     ? ['super_admin', 'admin', 'coordinador', 'director']
     : ['coordinador', 'director']
 
-  const [form, setForm] = useState({
+  const blanco = {
     email: '',
     nombre: '',
     rol: 'director',
     sede: ''
+  }
+
+  const [form, setForm] = useState(() => {
+    // Si hay un borrador guardado (la página se recargó sola con el
+    // modal abierto), se prioriza sobre lo que venga por props: es lo
+    // último que el usuario había tipeado.
+    const borrador = leerBorradorUsuario()
+    return borrador ? borrador.form : (usuario || blanco)
   })
 
+  // El primer render ya inicializa `form` (arriba). Este efecto es solo
+  // para cuando el modal ya está abierto y se le pasa un `usuario`
+  // distinto — no debe pisar el borrador recién restaurado al montar.
+  const montado = useRef(false)
   useEffect(() => {
+    if (!montado.current) { montado.current = true; return }
     if (usuario) setForm(usuario)
   }, [usuario])
 
-  const set = (field, value) => setForm(f => ({ ...f, [field]: value }))
+  // Se limpia el borrador al desmontar (cancelar o guardar con éxito).
+  useEffect(() => {
+    return () => limpiarBorradorUsuario()
+  }, [])
+
+  const set = (field, value) => setForm(f => {
+    const nuevo = { ...f, [field]: value }
+    guardarBorradorUsuario(nuevo)
+    return nuevo
+  })
 
   const inputStyle = {
     width: '100%',
