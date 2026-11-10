@@ -1,4 +1,4 @@
-name: Deploy (GitHub Pages + Hostinger)
+name: Deploy a Hostinger
 
 on:
   push:
@@ -7,59 +7,12 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "deploy"
   cancel-in-progress: false
 
 jobs:
-  # --- GitHub Pages (transitorio: se elimina cuando Hostinger quede como sitio oficial) ---
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Instalar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Instalar dependencias
-        run: npm ci
-
-      - name: Compilar proyecto
-        run: npm run build
-        env:
-          BASE_PATH: /stlukesit/
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      - name: Ajustar rutas de páginas de error para /stlukesit/
-        run: sed -i 's#\(href\|src\)="/#\1="/stlukesit/#g' dist/401.html dist/403.html dist/404.html
-
-      - name: Configurar Pages
-        uses: actions/configure-pages@v5
-
-      - name: Subir artefacto
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist'
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Publicar en GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
   # --- Hostinger (FTP) ---
   hostinger:
     runs-on: ubuntu-latest

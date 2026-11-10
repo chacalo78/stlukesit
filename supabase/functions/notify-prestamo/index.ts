@@ -65,7 +65,7 @@ function prestamoTemplate(opts: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px; background-color:#152116; border:1px solid #3a5a3d; border-radius:14px; overflow:hidden; font-family:Arial, Helvetica, sans-serif;">
           <tr>
             <td align="center" style="padding:32px 32px 20px;">
-              <img src="https://chacalo78.github.io/stlukesit/logo.png" alt="St. Luke's College" width="90" style="display:block; margin:0 auto 12px;" />
+              <img src="https://inventario.chacalo.com.ar/logo.png" alt="St. Luke's College" width="90" style="display:block; margin:0 auto 12px;" />
               <div style="color:#c8a44a; font-size:16px; font-weight:bold; letter-spacing:.5px;">St. Luke's College</div>
               <div style="color:#5c7a5e; font-size:11px; margin-top:2px;">Sistema de IT</div>
             </td>
@@ -127,7 +127,7 @@ function devolucionTemplate(opts: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px; background-color:#152116; border:1px solid #3a5a3d; border-radius:14px; overflow:hidden; font-family:Arial, Helvetica, sans-serif;">
           <tr>
             <td align="center" style="padding:32px 32px 20px;">
-              <img src="https://chacalo78.github.io/stlukesit/logo.png" alt="St. Luke's College" width="90" style="display:block; margin:0 auto 12px;" />
+              <img src="https://inventario.chacalo.com.ar/logo.png" alt="St. Luke's College" width="90" style="display:block; margin:0 auto 12px;" />
               <div style="color:#c8a44a; font-size:16px; font-weight:bold; letter-spacing:.5px;">St. Luke's College</div>
               <div style="color:#5c7a5e; font-size:11px; margin-top:2px;">Sistema de IT</div>
             </td>
