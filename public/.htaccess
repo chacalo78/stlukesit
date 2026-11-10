@@ -3,6 +3,11 @@
 Options -Indexes
 DirectoryIndex index.html
 
+# Ocultar archivos internos (estado del deploy por FTP, archivos punto)
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
 # Forzar HTTPS
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
