@@ -32,3 +32,6 @@ supabase/.temp/
 
 # Archivos temporales sueltos de settings locales
 .claude/*.tmp.*
+
+# Datos de acceso sueltos (nunca subir)
+hosting.txt

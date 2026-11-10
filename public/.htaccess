@@ -1,0 +1,25 @@
+# Configuración para Hostinger (Apache/LiteSpeed)
+
+Options -Indexes
+DirectoryIndex index.html
+
+# Forzar HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Páginas de error propias
+ErrorDocument 401 /401.html
+ErrorDocument 403 /403.html
+ErrorDocument 404 /404.html
+
+# Caché: index.html siempre fresco (así cada deploy se ve al instante);
+# los archivos de /assets llevan hash en el nombre y se pueden cachear por un año.
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <If "%{REQUEST_URI} =~ m#^/assets/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+</IfModule>

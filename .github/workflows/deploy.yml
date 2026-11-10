@@ -1,4 +1,4 @@
-name: Deploy a GitHub Pages
+name: Deploy (GitHub Pages + Hostinger)
 
 on:
   push:
@@ -11,10 +11,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "deploy"
   cancel-in-progress: false
 
 jobs:
+  # --- GitHub Pages (transitorio: se elimina cuando Hostinger quede como sitio oficial) ---
   build:
     runs-on: ubuntu-latest
     steps:
@@ -33,8 +34,12 @@ jobs:
       - name: Compilar proyecto
         run: npm run build
         env:
+          BASE_PATH: /stlukesit/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Ajustar rutas de páginas de error para /stlukesit/
+        run: sed -i 's#\(href\|src\)="/#\1="/stlukesit/#g' dist/401.html dist/403.html dist/404.html
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
@@ -54,3 +59,48 @@ jobs:
       - name: Publicar en GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # --- Hostinger (FTP) ---
+  hostinger:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    steps:
+      - name: Checkout
+        if: env.FTP_SERVER != ''
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        if: env.FTP_SERVER != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        if: env.FTP_SERVER != ''
+        run: npm ci
+
+      - name: Compilar proyecto
+        if: env.FTP_SERVER != ''
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # El certificado TLS del FTP de Hostinger es *.hstgr.io (no la IP): apuntamos
+      # hstgr.io a la IP del servidor para conectar por FTPS verificando el certificado.
+      - name: Resolver hstgr.io a la IP del FTP
+        if: env.FTP_SERVER != ''
+        run: echo "$FTP_SERVER hstgr.io" | sudo tee -a /etc/hosts
+
+      - name: Publicar en Hostinger por FTPS
+        if: env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: hstgr.io
+          protocol: ftps
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          local-dir: ./dist/
