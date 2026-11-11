@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
+import { leerConfig } from '../src/config.js';
 import { crearApp } from '../src/app.js';
 import { crearToken, consumirToken } from '../src/auth/tokens.js';
 import { esperarPendientes, enviarSinEsperar } from '../src/mail/enviar.js';
@@ -266,7 +267,7 @@ describe('plantillas', () => {
   const XSS = '<script>alert(1)</script>';
   it('recuperación e invitación: link con botón, escapado', () => {
     const rec = plantillas.recuperacion(`${OK}/?token=a%2Bb&tipo=recuperacion`);
-    expect(rec.asunto).toBeTruthy();
+    expect(rec.asunto).toBe('Restablecer Contraseña');
     expect(rec.html).toContain('Restablecer contraseña');
     expect(rec.html).toContain('logo.png');
     expect(rec.html).not.toContain('{{');
@@ -303,5 +304,89 @@ describe('plantillas', () => {
     expect(plantillas.passwordCambiada(XSS).html).not.toContain('<script>');
     expect(plantillas.passwordRestablecida().html).toContain('Un administrador del sistema restableció tu contraseña.');
     expect(plantillas.passwordRestablecida().asunto).toBe('Tu contraseña fue actualizada');
+  });
+});
+
+describe('R21 y límites (ronda de correcciones)', () => {
+  it('I2: inundar /recuperar no extiende el bloqueo; pasada la hora desde el 3er mail vuelve a enviar', async () => {
+    const t0 = reloj.t;
+    for (let i = 0; i < 1000; i++) await post('/api/auth/recuperar', { email: 'ana@colegio.test' });
+    await esperarPendientes();
+    expect(mailer.enviados).toHaveLength(3);
+    reloj.t = t0 + 30 * 60 * 1000;
+    await post('/api/auth/recuperar', { email: 'ana@colegio.test' }); // bloqueado: no cuenta
+    reloj.t = t0 + 61 * 60 * 1000;
+    await recuperar('ana@colegio.test');
+    expect(mailer.enviados).toHaveLength(4);
+  }, 60000);
+
+  it('I3: formato real de la sesión y cerrarSesionesDe', async () => {
+    await usuario('u-7', 'sa@colegio.test', await bcrypt.hash('clave-sa', 4));
+    await usuario('u-8', 'sb@colegio.test', await bcrypt.hash('clave-sb', 4));
+    await db.query('DELETE FROM sesiones');
+    const a1 = await iniciarSesionComo(app, 'sa@colegio.test', 'clave-sa');
+    await iniciarSesionComo(app, 'sa@colegio.test', 'clave-sa');
+    await iniciarSesionComo(app, 'sb@colegio.test', 'clave-sb');
+    const [filas] = await db.query('SELECT data FROM sesiones');
+    expect(filas.map((f) => JSON.parse(f.data).usuarioId).sort()).toEqual(['u-7', 'u-7', 'u-8']);
+    expect(filas[0].data).toMatch(/"usuarioId":"u-[78]"/);
+    const { cerrarSesionesDe } = await import('../src/auth/sesion.js');
+    await cerrarSesionesDe(db, 'u-7');
+    const [resto] = await db.query('SELECT data FROM sesiones');
+    expect(resto.map((f) => JSON.parse(f.data).usuarioId)).toEqual(['u-8']);
+    expect(a1).toBeTruthy();
+  });
+
+  it('I3: reset por token cierra todas las sesiones del usuario y no toca las de otros', async () => {
+    await db.query('DELETE FROM sesiones');
+    const a1 = await iniciarSesionComo(app, 'sa@colegio.test', 'clave-sa');
+    await iniciarSesionComo(app, 'sa@colegio.test', 'clave-sa');
+    const b = await iniciarSesionComo(app, 'sb@colegio.test', 'clave-sb');
+    const t = await nuevoToken('u-7', 'recuperacion');
+    expect((await post('/api/auth/token', { token: t, password: 'clave-sa-nueva' })).status).toBe(200);
+    const [filas] = await db.query('SELECT data FROM sesiones');
+    expect(filas.map((f) => JSON.parse(f.data).usuarioId)).toEqual(['u-8']);
+    const ses = (c) => request(app).get('/api/auth/sesion').set('X-Forwarded-Proto', 'https').set('Cookie', c);
+    expect((await ses(a1)).status).toBe(401);
+    expect((await ses(b)).status).toBe(200);
+  });
+
+  it('I3: cambio de clave cierra las otras sesiones pero no la actual', async () => {
+    await db.query('DELETE FROM sesiones');
+    const otra = await iniciarSesionComo(app, 'sb@colegio.test', 'clave-sb');
+    const actual = await iniciarSesionComo(app, 'sb@colegio.test', 'clave-sb');
+    const r = await request(app).post('/api/auth/password').set('Origin', OK).set('X-Forwarded-Proto', 'https')
+      .set('Cookie', actual).send({ passwordActual: 'clave-sb', passwordNueva: 'clave-sb-nueva' });
+    expect(r.status).toBe(200);
+    const nueva = r.headers['set-cookie'].find((c) => c.startsWith('sid=')).split(';')[0];
+    const ses = (c) => request(app).get('/api/auth/sesion').set('X-Forwarded-Proto', 'https').set('Cookie', c);
+    expect((await ses(otra)).status).toBe(401);
+    expect((await ses(nueva)).status).toBe(200);
+  });
+
+  it('R21: si el UPDATE de la clave falla, se revierte y el token no se gasta', async () => {
+    const dbRota = Object.create(db);
+    dbRota.getConnection = async () => {
+      const c = await db.getConnection();
+      const q = c.query.bind(c);
+      c.query = (sql, ...r) => (String(sql).startsWith('UPDATE usuarios') ? Promise.reject(new Error('falla')) : q(sql, ...r));
+      return c;
+    };
+    const appRota = crearApp({ db: dbRota, mailer, config: { corsOrigins: [OK], sessionSecret: 's', appUrl: OK } });
+    const t = await nuevoToken('u-8', 'recuperacion');
+    const r = await request(appRota).post('/api/auth/token').set('Origin', OK).set('X-Forwarded-Proto', 'https').send({ token: t, password: 'abcdef1' });
+    expect(r.status).toBe(500);
+    expect((await consumirToken(db, t)).usuarioId).toBe('u-8'); // sigue vigente
+  });
+
+  it('APP_URL: link sin y con barra final; requerida en la config', async () => {
+    const appBarra = crearApp({ db, mailer, config: { corsOrigins: [OK], sessionSecret: 's', appUrl: OK + '///', ahora: () => reloj.t } });
+    await request(appBarra).post('/api/auth/recuperar').set('Origin', OK).set('X-Forwarded-Proto', 'https').send({ email: 'ana@colegio.test' });
+    await esperarPendientes();
+    expect(mailer.enviados[0].html).toContain(`href="${OK}/?token=`);
+    expect(mailer.enviados[0].html).not.toContain('//?token');
+    const base = { DB_HOST: 'h', DB_USER: 'u', DB_PASSWORD: 'p', DB_NAME: 'n', SESSION_SECRET: 's' };
+    expect(() => leerConfig(base)).toThrow(/APP_URL/);
+    expect(leerConfig({ ...base, APP_URL: OK + '/' }).appUrl).toBe(OK);
   });
 });

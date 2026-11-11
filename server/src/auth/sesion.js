@@ -35,3 +35,11 @@ export function requiereSesion(req, res, next) {
     req.usuario = { id: u.id, email: u.email, nombre: u.nombre, rol: u.rol, sede: u.sede, habilitado: !!u.habilitado };
   })().then(() => next(), next);
 }
+
+// Borra las sesiones del usuario (data es el JSON de express-session: {"cookie":{...},"usuarioId":"<uuid>"}).
+// `exceptoSid` conserva una sesión (la actual al cambiar la clave).
+export async function cerrarSesionesDe(db, usuarioId, exceptoSid = null) {
+  const patron = `%"usuarioId":"${String(usuarioId).replace(/[\\%_"]/g, '\\$&')}"%`;
+  if (exceptoSid) await db.query('DELETE FROM sesiones WHERE data LIKE ? AND session_id <> ?', [patron, exceptoSid]);
+  else await db.query('DELETE FROM sesiones WHERE data LIKE ?', [patron]);
+}

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { errorHttp } from '../errores.js';
 import { crearLimiteIntentos } from './limiteIntentos.js';
-import { requiereSesion, promesa, limpiarCookie } from './sesion.js';
+import { requiereSesion, promesa, limpiarCookie, cerrarSesionesDe } from './sesion.js';
 import { crearToken, consumirToken, MSG_ENLACE } from './tokens.js';
 import { enSegundoPlano, enviarSinEsperar } from '../mail/enviar.js';
 import * as plantillas from '../mail/plantillas.js';
@@ -115,6 +115,7 @@ export function crearRutasAuth({ ahora } = {}) {
     await promesa((cb) => req.session.regenerate(cb));
     req.session.usuarioId = req.usuario.id;
     await promesa((cb) => req.session.save(cb));
+    await cerrarSesionesDe(db, req.usuario.id, req.sessionID); // las demás sesiones del usuario
     enviarSinEsperar(req.app.locals.mailer, { para: req.usuario.email, ...plantillas.passwordCambiada(plantillas.MOTIVO_CAMBIO_PROPIO) });
     res.json({ ok: true });
   }));
@@ -129,16 +130,16 @@ export function crearRutasAuth({ ahora } = {}) {
     const claveEmail = `rec|${email}`;
     const claveIp = `rec-ip|${req.ip}`;
     const excedido = limiteRecEmail.bloqueado(claveEmail) || limiteRecIp.bloqueado(claveIp);
+    if (excedido) return; // bloqueado: no se registra nada (memoria acotada y el bloqueo no se extiende)
     limiteRecEmail.registrarFallo(claveEmail); // cuenta pedidos, existan o no
     limiteRecIp.registrarFallo(claveIp);
-    if (excedido) return;
     const { db, mailer, config } = req.app.locals;
     enSegundoPlano(async () => {
       const [filas] = await db.query('SELECT id, email FROM usuarios WHERE LOWER(email) = ? AND habilitado = 1', [email]);
       const u = filas[0];
       if (!u) return;
       const token = await crearToken(db, u.id, 'recuperacion');
-      const link = `${config.appUrl}/?token=${encodeURIComponent(token)}&tipo=recuperacion`;
+      const link = `${String(config.appUrl).replace(/\/+$/, '')}/?token=${encodeURIComponent(token)}&tipo=recuperacion`;
       await mailer.enviar({ para: u.email, ...plantillas.recuperacion(link) });
     });
   }));
@@ -147,12 +148,25 @@ export function crearRutasAuth({ ahora } = {}) {
   r.post('/token', envolver(async (req, res) => {
     const { token, password } = validar(tokenSchema, req.body);
     const { db, mailer } = req.app.locals;
-    const { usuarioId } = await consumirToken(db, token);
-    const [filas] = await db.query('SELECT email, habilitado FROM usuarios WHERE id = ?', [usuarioId]);
-    const u = filas[0];
-    if (!u || !u.habilitado) throw errorHttp(400, MSG_ENLACE);
-    const hash = await bcrypt.hash(password, COSTO);
-    await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, usuarioId]);
+    const hash = await bcrypt.hash(password, COSTO); // antes de abrir la transacción
+    // Consumir el token y cambiar la clave en una sola transacción: si algo falla, el token no se gasta.
+    const conn = await db.getConnection();
+    let u;
+    try {
+      await conn.beginTransaction();
+      const { usuarioId } = await consumirToken(conn, token);
+      const [filas] = await conn.query('SELECT id, email, habilitado FROM usuarios WHERE id = ?', [usuarioId]);
+      u = filas[0];
+      if (!u || !u.habilitado) throw errorHttp(400, MSG_ENLACE);
+      await conn.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, usuarioId]);
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback().catch(() => {});
+      throw e;
+    } finally {
+      conn.release();
+    }
+    await cerrarSesionesDe(db, u.id);
     enviarSinEsperar(mailer, { para: u.email, ...plantillas.passwordCambiada(plantillas.MOTIVO_CAMBIO_PROPIO) });
     res.json({ ok: true });
   }));

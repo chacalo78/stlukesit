@@ -186,7 +186,6 @@ export function passwordCambiada(motivo) {
 // Restablecida por un admin: mismo mail que "cambiada" con el motivo de reset-password.
 export const passwordRestablecida = () => passwordCambiada(MOTIVO_ADMIN);
 
-// Asunto del mail de recuperación: el original se configuraba en el panel de Supabase Auth (no está en el repo).
 export function recuperacion(link) {
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a150b; padding:32px 16px;">
   <tr>
@@ -229,7 +228,7 @@ export function recuperacion(link) {
   </tr>
 </table>
 `;
-  return { asunto: 'Restablecer tu contraseña', html };
+  return { asunto: 'Restablecer Contraseña', html };
 }
 
 // Nueva: misma estética que la recuperación.

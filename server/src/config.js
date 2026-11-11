@@ -1,4 +1,4 @@
-const REQUERIDAS = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'SESSION_SECRET'];
+const REQUERIDAS = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'SESSION_SECRET', 'APP_URL'];
 
 export function leerConfig(env = process.env) {
   const faltan = REQUERIDAS.filter((k) => !env[k]);
@@ -22,7 +22,7 @@ export function leerConfig(env = process.env) {
       fromName: env.SMTP_FROM_NAME,
       fromEmail: env.SMTP_FROM_EMAIL,
     },
-    appUrl: env.APP_URL,
+    appUrl: env.APP_URL.replace(/\/+$/, ''),
     corsOrigins: (env.CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
   };
 }
