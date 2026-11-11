@@ -105,6 +105,7 @@ export function crearRutasEquipos() {
     const cols = Object.keys(d);
     await enTransaccion(db, async (conn) => {
       const f = await bloquear(conn, req.params.id);
+      if (f.estado === 'Baja Definitiva') throw errorHttp(409, 'El equipo está dado de baja definitivamente');
       await conn.query(`UPDATE equipos SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...Object.values(d), f.id]);
       const cambios = camposModificados(f, d);
       await movimiento(conn, 'Modificación',
@@ -127,8 +128,8 @@ export function crearRutasEquipos() {
 
   // equipos.darDeBaja(equipo, actor)
   r.post('/:id/baja', exige(ACCIONES.EQUIPOS_ESCRIBIR), transicion({
-    permitido: (e) => e !== 'De baja' && e !== 'Baja Definitiva',
-    conflicto: 'El equipo ya está dado de baja',
+    permitido: (e) => e !== 'Baja Definitiva', // como el frontend: sobre 'De baja' actualiza y registra de nuevo
+    conflicto: 'El equipo está dado de baja definitivamente',
     set: { sql: "estado = 'De baja'", params: () => [] },
     tipoMov: 'Baja', desc: 'Equipo dado de baja',
   }));
@@ -142,7 +143,7 @@ export function crearRutasEquipos() {
   }));
 
   // equipos.restaurar(equipo, actor): solo desde 'Baja Definitiva'. Deja fecha/por de la baja como hoy.
-  r.post('/:id/restaurar', exige(ACCIONES.EQUIPOS_ESCRIBIR), transicion({
+  r.post('/:id/restaurar', exige(ACCIONES.EQUIPOS_RESTAURAR), transicion({
     permitido: (e) => e === 'Baja Definitiva',
     conflicto: 'El equipo no está en Bajas Definitivas',
     set: { sql: "estado = 'Activo'", params: () => [] },

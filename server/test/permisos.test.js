@@ -12,6 +12,7 @@ const u = (rol, id = 1, email = 'yo@x.cl') => ({ id, email, rol });
 const SIMPLES = [
   ['EQUIPOS_LEER', [true, true, true, true]],
   ['EQUIPOS_ESCRIBIR', [true, true, false, false]],
+  ['EQUIPOS_RESTAURAR', [true, false, false, false]],
   ['MOVIMIENTOS_LEER', [true, true, true, true]],
   ['MOVIMIENTOS_REGISTRAR', [true, true, true, false]],
   ['MOVIMIENTOS_MODIFICAR', [true, true, false, false]],

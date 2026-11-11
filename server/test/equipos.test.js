@@ -43,6 +43,7 @@ const ESCRITURAS = [
   ['post', '/api/equipos/e1/baja-definitiva', {}],
   ['post', '/api/equipos/e1/restaurar', {}],
 ];
+const RESTAURAR = '/api/equipos/e1/restaurar';
 const LECTURAS = ['/api/equipos', '/api/equipos/e1', '/api/equipos/bajas-definitivas', '/api/equipos/e1/movimientos', '/api/movimientos'];
 
 describe('permisos', () => {
@@ -123,6 +124,10 @@ describe('baja, baja definitiva, restaurar (R9)', () => {
     expect(r.status).toBe(200);
     expect(r.body.estado).toBe('De baja');
     expect(await movs()).toEqual([{ equipo_id: 'e1', tipo_movimiento: 'Baja', descripcion: 'Equipo dado de baja: A1', usuario: 'Ada Admin' }]);
+    // como el frontend: repetir la baja actualiza y registra otro movimiento (no es error)
+    expect((await llamar('post', '/api/equipos/e1/baja', c.ad, {})).status).toBe(200);
+    expect(await movs()).toHaveLength(2);
+    await db.query("UPDATE equipos SET estado = 'Baja Definitiva' WHERE id = 'e1'");
     expect((await llamar('post', '/api/equipos/e1/baja', c.ad, {})).status).toBe(409);
     expect((await llamar('post', '/api/equipos/nope/baja', c.ad, {})).status).toBe(404);
   });
@@ -145,6 +150,23 @@ describe('baja, baja definitiva, restaurar (R9)', () => {
     expect((await llamar('post', '/api/equipos/e1/baja-definitiva', c.ad, {})).status).toBe(409);
     expect((await llamar('post', '/api/equipos/nope/baja-definitiva', c.ad, {})).status).toBe(404);
   });
+  it('restaurar es solo de super_admin: admin 403 y la fila no cambia', async () => {
+    await nuevoEquipo('e1', { estado: 'Baja Definitiva' });
+    const r = await llamar('post', RESTAURAR, c.ad, {});
+    expect(r.status).toBe(403);
+    expect((await equipo('e1')).estado).toBe('Baja Definitiva');
+    expect(await movs()).toEqual([]);
+  });
+  it('PATCH sobre Baja Definitiva -> 409 (no se restaura por esa vía)', async () => {
+    await nuevoEquipo('e1', { estado: 'Baja Definitiva' });
+    for (const body of [{ estado: 'Activo' }, { marca: 'X' }]) {
+      const r = await llamar('patch', '/api/equipos/e1', c.sa, body);
+      expect(r.status).toBe(409);
+      expect(r.body).toEqual({ error: 'El equipo está dado de baja definitivamente' });
+    }
+    expect((await equipo('e1')).estado).toBe('Baja Definitiva');
+    expect(await movs()).toEqual([]);
+  });
   it('restaurar: solo desde Baja Definitiva -> Activo, movimiento Modificación', async () => {
     await nuevoEquipo('e1', { numero_inventario: 'A1', estado: 'Baja Definitiva', fecha_baja_definitiva: '2025-01-02 03:04:05.678' });
     expect((await llamar('post', '/api/equipos/e1/restaurar', c.sa, {})).body.estado).toBe('Activo');
@@ -157,6 +179,27 @@ describe('baja, baja definitiva, restaurar (R9)', () => {
     const rs = await Promise.all([1, 2].map(() => llamar('post', '/api/equipos/e1/baja-definitiva', c.ad, {})));
     expect(rs.map((r) => r.status).sort()).toEqual([200, 409]);
     expect(await movs()).toHaveLength(1);
+  });
+});
+
+describe('zona horaria UTC del pool (R26)', () => {
+  it('cada conexión del pool queda en +00:00 aunque otra sesión use otra zona; movimientos.fecha es UTC', async () => {
+    const mysql = (await import('mysql2/promise')).default;
+    const raw = await mysql.createConnection({ host: process.env.TEST_DB_HOST || '127.0.0.1', port: Number(process.env.TEST_DB_PORT || 3306),
+      user: process.env.TEST_DB_USER || 'stlukesit_test', password: process.env.TEST_DB_PASSWORD || 'test_local_pw' });
+    try {
+      await raw.query("SET time_zone = '-03:00'");
+      const [[a]] = await raw.query('SELECT @@session.time_zone tz, UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3)) u, CURRENT_TIMESTAMP(3) t');
+      expect(a.tz).toBe('-03:00');
+    } finally { await raw.end(); }
+    const conns = await Promise.all([db.getConnection(), db.getConnection(), db.getConnection()]);
+    try {
+      for (const cn of conns) expect((await cn.query('SELECT @@session.time_zone tz'))[0][0].tz).toBe('+00:00');
+    } finally { conns.forEach((cn) => cn.release()); }
+    const r = await llamar('post', '/api/equipos', c.ad, { tipo: 'Notebook' });
+    const m = (await llamar('get', '/api/movimientos', c.ad)).body[0];
+    expect(Math.abs(Date.now() - new Date(m.fecha).getTime())).toBeLessThan(10_000);
+    expect(Math.abs(Date.now() - new Date(r.body.created_at).getTime())).toBeLessThan(10_000);
   });
 });
 

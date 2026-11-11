@@ -6,6 +6,7 @@ import { errorHttp } from '../errores.js';
 export const ACCIONES = Object.freeze({
   EQUIPOS_LEER: 'equipos:leer',
   EQUIPOS_ESCRIBIR: 'equipos:escribir', // crear/editar/baja/baja definitiva
+  EQUIPOS_RESTAURAR: 'equipos:restaurar', // solo super_admin (R27)
   MOVIMIENTOS_LEER: 'movimientos:leer',
   MOVIMIENTOS_REGISTRAR: 'movimientos:registrar',
   MOVIMIENTOS_MODIFICAR: 'movimientos:modificar', // editar/borrar
@@ -39,6 +40,7 @@ const esAdminOSuper = (r) => r === SA || r === AD;
 const POR_ROL = new Map([
   [ACCIONES.EQUIPOS_LEER, [SA, AD, CO, DI]],
   [ACCIONES.EQUIPOS_ESCRIBIR, [SA, AD]],
+  [ACCIONES.EQUIPOS_RESTAURAR, [SA]],
   [ACCIONES.MOVIMIENTOS_LEER, [SA, AD, CO, DI]],
   [ACCIONES.MOVIMIENTOS_REGISTRAR, [SA, AD, CO]],
   [ACCIONES.MOVIMIENTOS_MODIFICAR, [SA, AD]],
