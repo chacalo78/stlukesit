@@ -290,3 +290,17 @@ describe('POST /api/prestamos/:id/devolver', () => {
     expect((await equipo('e1')).estado).toBe('Baja Definitiva');
   });
 });
+
+describe('hora del mail de devolución (R28)', () => {
+  it('formatea en America/Argentina/Buenos_Aires sin depender de la TZ del proceso', async () => {
+    const { devolucion } = await import('../src/mail/plantillas.js');
+    const { html } = devolucion({ persona: 'P', fechaDevolucion: '2026-11-11T02:30:00Z' });
+    expect(html).toContain('10/11/2026, 11:30 p. m.');
+  });
+  it('aISO normaliza Date y strings (con o sin zona) al mismo instante', async () => {
+    const { aISO } = await import('../src/rutas/prestamos.js');
+    for (const v of [new Date('2026-11-11T02:30:00.000Z'), '2026-11-11 02:30:00.000', '2026-11-11T02:30:00.000Z']) {
+      expect(aISO(v)).toBe('2026-11-11T02:30:00.000Z');
+    }
+  });
+});

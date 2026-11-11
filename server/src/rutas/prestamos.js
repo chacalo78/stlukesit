@@ -38,6 +38,8 @@ const anidar = ({ e_id, e_numero_inventario, e_tipo, e_marca, e_modelo, e_ubicac
   ...p,
   equipos: e_id === null ? null : { id: e_id, numero_inventario: e_numero_inventario, tipo: e_tipo, marca: e_marca, modelo: e_modelo, ubicacion: e_ubicacion },
 });
+// El pool devuelve DATETIME como Date; si llegara como string (UTC, sin zona) se normaliza a un instante ISO.
+export const aISO = (v) => (v instanceof Date ? v : new Date(typeof v === 'string' && !/(Z|[+-]\d\d:?\d\d)$/.test(v) ? `${v.replace(' ', 'T')}Z` : v)).toISOString();
 const leer = async (db, id) => {
   const [[f]] = await db.query(`${SELECT} WHERE p.id = ?`, [id]);
   return f && anidar(f);
@@ -113,7 +115,7 @@ export function crearRutasPrestamos() {
         para: prestamo.email_destinatario,
         ...plantillas.devolucion({
           persona: prestamo.persona, numeroInventario: eq?.numero_inventario || '', tipo: eq?.tipo || '', marca: eq?.marca || '',
-          modelo: eq?.modelo || '', fechaDevolucion: prestamo.fecha_devolucion_real.toISOString(), observaciones: observaciones || '',
+          modelo: eq?.modelo || '', fechaDevolucion: aISO(prestamo.fecha_devolucion_real), observaciones: observaciones || '',
         }),
       });
     }
