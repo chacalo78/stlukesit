@@ -42,7 +42,7 @@ describe('login', () => {
   it('hash $2a$ migrado -> 200, cuerpo y cookie sid HttpOnly Secure SameSite=Lax Path=/', async () => {
     const r = await login('ana@colegio.test', 'vieja-clave');
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ email: 'ana@colegio.test', nombre: 'Ana', rol: 'super_admin', sede: 'Central', habilitado: true });
+    expect(r.body).toEqual({ id: 'u-1', email: 'ana@colegio.test', nombre: 'Ana', rol: 'super_admin', sede: 'Central', habilitado: true });
     const c = r.headers['set-cookie'].find((x) => x.startsWith('sid='));
     expect(c).toMatch(/HttpOnly/i);
     expect(c).toMatch(/Secure/i);
@@ -126,7 +126,7 @@ describe('sesión', () => {
     const cookie = await iniciarSesionComo(app, 'ana@colegio.test', 'vieja-clave');
     const r = await get('/api/auth/sesion', cookie);
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ email: 'ana@colegio.test', nombre: 'Ana', rol: 'super_admin', sede: 'Central', habilitado: true });
+    expect(r.body).toEqual({ id: 'u-1', email: 'ana@colegio.test', nombre: 'Ana', rol: 'super_admin', sede: 'Central', habilitado: true });
   });
   it('cookie con firma inválida -> 401', async () => {
     const r = await get('/api/auth/sesion', 'sid=s%3Aabc.def');

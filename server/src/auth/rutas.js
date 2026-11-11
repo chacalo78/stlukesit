@@ -38,7 +38,7 @@ function validar(schema, body) {
   return r.data;
 }
 
-const publico = (u) => ({ email: u.email, nombre: u.nombre, rol: u.rol, sede: u.sede, habilitado: !!u.habilitado });
+const publico = (u) => ({ id: u.id, email: u.email, nombre: u.nombre, rol: u.rol, sede: u.sede, habilitado: !!u.habilitado });
 const envolver = (fn) => (req, res, next) => fn(req, res).catch(next);
 
 export function crearRutasAuth({ ahora } = {}) {

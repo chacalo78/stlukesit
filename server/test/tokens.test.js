@@ -58,7 +58,7 @@ describe('tokens', () => {
     expect(r.m).toBeGreaterThanOrEqual(58); expect(r.m).toBeLessThanOrEqual(60);
     await nuevoToken('u-1', 'invitacion');
     const [[i]] = await db.query("SELECT TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP(3), expira_at) h FROM tokens_password WHERE tipo='invitacion'");
-    expect(i.h).toBe(71); // 71 h y fracción
+    expect([71, 72]).toContain(i.h); // 72 h menos unos ms: según el instante del SELECT da 71 o 72
   });
   it('consumir devuelve usuarioId y tipo, y es de un solo uso', async () => {
     const t = await nuevoToken('u-1', 'invitacion');
@@ -385,7 +385,8 @@ describe('R21 y límites (ronda de correcciones)', () => {
     await esperarPendientes();
     expect(mailer.enviados[0].html).toContain(`href="${OK}/?token=`);
     expect(mailer.enviados[0].html).not.toContain('//?token');
-    const base = { DB_HOST: 'h', DB_USER: 'u', DB_PASSWORD: 'p', DB_NAME: 'n', SESSION_SECRET: 's' };
+    const base = { DB_HOST: 'h', DB_USER: 'u', DB_PASSWORD: 'p', DB_NAME: 'n', SESSION_SECRET: 's'.repeat(32), CORS_ORIGINS: OK,
+      SMTP_HOST: 'h', SMTP_PORT: '465', SMTP_USER: 'u', SMTP_PASS: 'p', SMTP_FROM_EMAIL: 'a@b.c' };
     expect(() => leerConfig(base)).toThrow(/APP_URL/);
     expect(leerConfig({ ...base, APP_URL: OK + '/' }).appUrl).toBe(OK);
   });

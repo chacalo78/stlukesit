@@ -43,7 +43,7 @@ function protegerEscrituras(permitidos) {
 export function crearApp({ db, mailer, config, extra }) {
   const permitidos = new Set(config.corsOrigins);
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.trustProxy ?? 1);
   app.disable('x-powered-by');
   app.use(helmet());
   app.use(cors(permitidos));
@@ -62,6 +62,11 @@ export function crearApp({ db, mailer, config, extra }) {
     }
   });
 
+  // Diagnóstico temporal para verificar la configuración de proxy en el hosting; apagado por defecto.
+  if (config.diagnostico) {
+    app.get('/api/diagnostico', (req, res) => res.json({ protocolo: req.protocol, ip: req.ip, seguro: req.secure }));
+  }
+
   montarRutas(app, { db, config });
   extra?.(app);
 
@@ -73,7 +78,8 @@ export function crearApp({ db, mailer, config, extra }) {
     if (Number.isInteger(err.status) && err.status >= 400 && err.status < 500) {
       return res.status(err.status).json({ error: err.message });
     }
-    console.error(err);
+    // Sin valores: err.sql / err.sqlMessage / el cuerpo pueden contener datos del request.
+    console.error(`Error 500 en ${req.method} ${req.path} (code=${err.code ?? '-'}, errno=${err.errno ?? '-'})`);
     res.status(500).json({ error: 'Error interno del servidor' });
   });
   return app;

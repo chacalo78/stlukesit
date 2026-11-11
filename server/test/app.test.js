@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import { crearApp } from '../src/app.js';
 import { errorHttp } from '../src/errores.js';
@@ -108,5 +108,49 @@ describe('errores', () => {
     const r2 = await request(a).get('/conflicto');
     expect(r2.status).toBe(409);
     expect(r2.body).toEqual({ error: 'Ya existe' });
+  });
+});
+
+describe('diagnóstico de proxy', () => {
+  const cfg = (extra) => ({ corsOrigins: [OK], sessionSecret: 'secreto-de-test', ...extra });
+  it('apagado: 404', async () => {
+    const r = await request(crearApp({ db, config: cfg({ diagnostico: false }) })).get('/api/diagnostico');
+    expect(r.status).toBe(404);
+  });
+  it('encendido: protocolo, ip y seguro según X-Forwarded-*', async () => {
+    const a = crearApp({ db, config: cfg({ diagnostico: true, trustProxy: 1 }) });
+    const r = await request(a).get('/api/diagnostico').set('X-Forwarded-Proto', 'https').set('X-Forwarded-For', '203.0.113.9');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ protocolo: 'https', ip: '203.0.113.9', seguro: true });
+  });
+  it('trustProxy 0: ignora X-Forwarded-*', async () => {
+    const a = crearApp({ db, config: cfg({ diagnostico: true, trustProxy: 0 }) });
+    const r = await request(a).get('/api/diagnostico').set('X-Forwarded-Proto', 'https');
+    expect(r.body.protocolo).toBe('http');
+    expect(r.body.seguro).toBe(false);
+  });
+});
+
+describe('log del error 500', () => {
+  it('no incluye datos del request ni sql/sqlMessage; sí método, ruta, code y errno', async () => {
+    const espia = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const a = crearApp({
+        db, config: { corsOrigins: [OK], sessionSecret: 'secreto-de-test' },
+        extra: (app) => app.post('/api/boom', (req, res, next) => {
+          const e = new Error("Duplicate entry 'secreto@x.com'");
+          Object.assign(e, { code: 'ER_DUP_ENTRY', errno: 1062, sql: "INSERT INTO u VALUES ('secreto@x.com','$2a$hash')", sqlMessage: "Duplicate entry 'secreto@x.com'" });
+          next(e);
+        }),
+      });
+      const r = await request(a).post('/api/boom?token=abc123').set('Origin', OK).set('Content-Type', 'application/json')
+        .send({ email: 'secreto@x.com', password_hash: '$2a$hash' });
+      expect(r.status).toBe(500);
+      const log = espia.mock.calls.flat().map(String).join('\n');
+      expect(log).toContain('POST /api/boom');
+      expect(log).toContain('ER_DUP_ENTRY');
+      expect(log).toContain('1062');
+      for (const v of ['secreto@x.com', '$2a$hash', 'abc123', 'INSERT']) expect(log).not.toContain(v);
+    } finally { espia.mockRestore(); }
   });
 });
