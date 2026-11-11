@@ -10,6 +10,7 @@ import * as plantillas from '../mail/plantillas.js';
 import { ROLES, ROLE_LABELS } from '../util/roles.js';
 import { enTransaccion, movimiento } from '../util/transaccion.js';
 import { validar, envolver } from '../util/http.js';
+import { mandarMail } from '../util/mail.js';
 
 const COSTO = 12;
 const COLUMNAS = 'id, email, nombre, rol, sede, habilitado, created_at, (password_hash IS NOT NULL) AS tieneLogin';
@@ -66,16 +67,6 @@ const cargarObjetivo = (req) => (async () => {
   if (req.datos?.rol) recurso.rolNuevo = req.datos.rol;
   return recurso;
 })();
-
-async function mandarMail(mailer, msg) {
-  try {
-    if (!mailer) throw new Error('Mail no configurado');
-    await mailer.enviar(msg);
-    return undefined;
-  } catch (e) {
-    return String(e?.message || 'No se pudo enviar el mail');
-  }
-}
 
 async function enviarInvitacion(req, u) {
   const { db, mailer, config } = req.app.locals;
