@@ -91,4 +91,33 @@ describe('esquema', () => {
     expect(v).toEqual(obj);
     expect(r.estado).toBe('Pendiente');
   });
+
+  describe('enumeraciones exactas (CHECK binario)', () => {
+    const ESTADOS = ['Activo', 'En reparación', 'Requiere atención', 'De baja', 'En depósito', 'Prestado', 'Baja Definitiva'];
+    const MOVS = ['Alta', 'Baja', 'Modificación', 'Traslado', 'Reparación', 'Préstamo', 'Devolución', 'Alta usuario',
+      'Modificación usuario', 'Baja usuario', 'Inhabilitado', 'Habilitado', 'Restablecimiento de contraseña', 'Baja Definitiva'];
+    const esCheck = (e) => [4025, 3819].includes(e.errno) || ['ER_CONSTRAINT_FAILED', 'ER_CHECK_CONSTRAINT_VIOLATED'].includes(e.code);
+    const rechazaCheck = async (p) => {
+      const e = await p.then(() => null, (x) => x);
+      expect(e, 'debía fallar').not.toBeNull();
+      expect(esCheck(e), `no es violación de CHECK: ${e.code} ${e.errno}`).toBe(true);
+    };
+
+    it.each(ESTADOS)('equipos.estado %s se acepta', async (estado) => {
+      await expect(nuevoEquipo({ estado })).resolves.toBeTruthy();
+    });
+
+    it.each(MOVS)('movimientos.tipo_movimiento %s se acepta', async (t) => {
+      await db.query('INSERT INTO movimientos (id, tipo_movimiento) VALUES (?, ?)', [randomUUID(), t]);
+    });
+
+    it.each(['En reparacion', 'activo'])("equipos.estado '%s' se rechaza por CHECK", (estado) =>
+      rechazaCheck(nuevoEquipo({ estado })));
+
+    it("movimientos.tipo_movimiento 'Prestamo' se rechaza por CHECK", () =>
+      rechazaCheck(db.query("INSERT INTO movimientos (id, tipo_movimiento) VALUES (?, 'Prestamo')", [randomUUID()])));
+
+    it("usuarios.rol 'Admin' se rechaza por CHECK", () =>
+      rechazaCheck(db.query("INSERT INTO usuarios (id, email, rol) VALUES (?, 'c@x.com', 'Admin')", [randomUUID()])));
+  });
 });
