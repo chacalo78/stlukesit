@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { auth } from '../api'
 
 const inputStyle = {
   width: '100%',
@@ -45,13 +45,13 @@ function UpdatePassword({ onDone }) {
     }
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (error) {
-      setError('No pudimos actualizar la contraseña. Probá pedir el enlace de nuevo.')
-    } else {
-      supabase.functions.invoke('notify-password-changed').catch(() => {})
+    try {
+      await auth.cambiarPassword(password)
+      setLoading(false)
       onDone()
+    } catch {
+      setLoading(false)
+      setError('No pudimos actualizar la contraseña. Probá pedir el enlace de nuevo.')
     }
   }
 

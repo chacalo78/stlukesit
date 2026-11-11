@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { usuarios } from '../api'
 
 const inputStyle = {
   width: '100%',
@@ -21,7 +21,7 @@ const labelStyle = {
   marginBottom: '5px'
 }
 
-function ModalResetPassword({ nombre, email, onClose, onSuccess }) {
+function ModalResetPassword({ id, nombre, email, actorNombre, onClose }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -43,15 +43,13 @@ function ModalResetPassword({ nombre, email, onClose, onSuccess }) {
     }
     setLoading(true)
     setError('')
-    const { data, error } = await supabase.functions.invoke('reset-password', {
-      body: { targetEmail: email, newPassword: password }
-    })
-    setLoading(false)
-    if (error || data?.error) {
-      setError(data?.error || 'No pudimos actualizar la contraseña. Probá de nuevo.')
-    } else {
+    try {
+      await usuarios.restablecerPassword(id, password, { nombre, email }, actorNombre)
+      setLoading(false)
       setListo(true)
-      onSuccess?.()
+    } catch (e) {
+      setLoading(false)
+      setError(e.message)
     }
   }
 

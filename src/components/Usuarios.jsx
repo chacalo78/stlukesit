@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { usuarios as usuariosApi } from '../api'
 import ModalUsuario from './ModalUsuario'
 import ModalResetPassword from './ModalResetPassword'
 import { ROLES, ROLE_LABELS, ROLE_BADGE } from '../roles'
@@ -25,8 +25,11 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
 
   async function cargarUsuarios() {
     setLoading(true)
-    const { data } = await supabase.from('user_roles').select('*').order('nombre', { ascending: true })
-    setUsuarios(data || [])
+    try {
+      setUsuarios(await usuariosApi.listar())
+    } catch {
+      setUsuarios([])
+    }
     setLoading(false)
   }
 
@@ -63,28 +66,16 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
       return
     }
 
-    let error
-    if (usuarioEditando) {
-      const res = await supabase.from('user_roles')
-        .update({ nombre: payload.nombre, rol: payload.rol, sede: payload.sede })
-        .eq('id', usuarioEditando.id)
-      error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        tipo_movimiento: 'Modificación usuario',
-        descripcion: `Usuario modificado: ${payload.nombre} (${payload.email}) — Rol: ${ROLE_LABELS[payload.rol]}${payload.sede ? `, Sede: ${payload.sede}` : ''}`,
-        usuario: currentUserNombre || 'Sistema'
-      })
-    } else {
-      const res = await supabase.from('user_roles').insert(payload)
-      error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        tipo_movimiento: 'Alta usuario',
-        descripcion: `Usuario dado de alta: ${payload.nombre} (${payload.email}) — Rol: ${ROLE_LABELS[payload.rol]}`,
-        usuario: currentUserNombre || 'Sistema'
-      })
+    try {
+      if (usuarioEditando) {
+        await usuariosApi.actualizar(usuarioEditando.id, payload, currentUserNombre)
+      } else {
+        await usuariosApi.crear(payload, currentUserNombre)
+      }
+    } catch (error) {
+      showToast('Error: ' + error.message, 'error')
+      return
     }
-
-    if (error) { showToast('Error: ' + error.message, 'error'); return }
     showToast(usuarioEditando ? 'Usuario actualizado' : 'Usuario creado correctamente')
     setModalOpen(false)
     setUsuarioEditando(null)
@@ -101,13 +92,12 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
       return
     }
     if (!window.confirm(`¿Confirmar baja del usuario "${usuario.nombre || usuario.email}"? Esto quita sus permisos en el sistema (no borra la cuenta de acceso).`)) return
-    const { error } = await supabase.from('user_roles').delete().eq('id', usuario.id)
-    if (error) { showToast('Error al dar de baja', 'error'); return }
-    await supabase.from('movimientos').insert({
-      tipo_movimiento: 'Baja usuario',
-      descripcion: `Usuario dado de baja: ${usuario.nombre || usuario.email}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
+    try {
+      await usuariosApi.eliminar(usuario.id, { nombre: usuario.nombre, email: usuario.email }, currentUserNombre)
+    } catch (error) {
+      showToast(error.message, 'error')
+      return
+    }
     showToast('Usuario dado de baja')
     cargarUsuarios()
   }
@@ -125,21 +115,12 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
     const accion = nuevoHabilitado ? 'habilitar' : 'inhabilitar'
     if (!window.confirm(`¿Confirmar ${accion} el acceso de "${usuario.nombre || usuario.email}"?${nuevoHabilitado ? '' : ' No va a poder ingresar al sistema hasta que se lo vuelva a habilitar.'}`)) return
 
-    const { data, error } = await supabase.functions.invoke('toggle-user-access', {
-      body: { targetEmail: usuario.email, habilitado: nuevoHabilitado }
-    })
-    if (error || data?.error) {
-      showToast(data?.error || 'Error al actualizar el acceso', 'error')
+    try {
+      await usuariosApi.cambiarHabilitado(usuario.id, nuevoHabilitado, { nombre: usuario.nombre, email: usuario.email }, currentUserNombre)
+    } catch (error) {
+      showToast(error.message, 'error')
       return
     }
-
-    const { error: dbError } = await supabase.from('user_roles').update({ habilitado: nuevoHabilitado }).eq('id', usuario.id)
-    if (dbError) { showToast('Error al guardar el estado', 'error'); return }
-    await supabase.from('movimientos').insert({
-      tipo_movimiento: nuevoHabilitado ? 'Habilitado' : 'Inhabilitado',
-      descripcion: `Usuario ${nuevoHabilitado ? 'habilitado' : 'inhabilitado'}: ${usuario.nombre || usuario.email}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
     showToast(nuevoHabilitado ? 'Usuario habilitado' : 'Usuario inhabilitado')
     cargarUsuarios()
   }
@@ -290,16 +271,11 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
 
       {usuarioResetPassword && (
         <ModalResetPassword
+          id={usuarioResetPassword.id}
           nombre={usuarioResetPassword.nombre}
           email={usuarioResetPassword.email}
+          actorNombre={currentUserNombre}
           onClose={() => setUsuarioResetPassword(null)}
-          onSuccess={() => {
-            supabase.from('movimientos').insert({
-              tipo_movimiento: 'Restablecimiento de contraseña',
-              descripcion: `Contraseña restablecida para: ${usuarioResetPassword.nombre || usuarioResetPassword.email}`,
-              usuario: currentUserNombre || 'Sistema'
-            })
-          }}
         />
       )}
     </div>

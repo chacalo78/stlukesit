@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { auth } from '../api'
 
 const inputStyle = {
   width: '100%',
@@ -21,7 +21,7 @@ const labelStyle = {
   marginBottom: '5px'
 }
 
-function ModalCambiarPassword({ email, onClose }) {
+function ModalCambiarPassword({ onClose }) {
   const [passwordActual, setPasswordActual] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -45,20 +45,17 @@ function ModalCambiarPassword({ email, onClose }) {
     setLoading(true)
     setError('')
 
-    const { error: errorActual } = await supabase.auth.signInWithPassword({ email, password: passwordActual })
-    if (errorActual) {
+    try {
+      await auth.cambiarPassword(password, passwordActual)
       setLoading(false)
-      setError('La contraseña actual es incorrecta')
-      return
-    }
-
-    const { error } = await supabase.auth.updateUser({ password })
-    setLoading(false)
-    if (error) {
-      setError('No pudimos actualizar la contraseña. Probá de nuevo.')
-    } else {
       setListo(true)
-      supabase.functions.invoke('notify-password-changed').catch(() => {})
+    } catch (e) {
+      setLoading(false)
+      if (e.code === 'password_actual_incorrecta') {
+        setError('La contraseña actual es incorrecta')
+      } else {
+        setError('No pudimos actualizar la contraseña. Probá de nuevo.')
+      }
     }
   }
 

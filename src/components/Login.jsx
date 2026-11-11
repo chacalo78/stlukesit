@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { auth } from '../api'
 
 const inputStyle = {
   width: '100%',
@@ -41,9 +41,10 @@ function Login({ sesionExpirada }) {
     setLoading(true)
     setError('')
     setCuentaInhabilitada(false)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      if (error.code === 'user_banned' || error.message === 'User is banned') {
+    try {
+      await auth.iniciarSesion(email, password)
+    } catch (e) {
+      if (e.code === 'cuenta_inhabilitada') {
         setCuentaInhabilitada(true)
       } else {
         setError('Email o contraseña incorrectos')
@@ -60,14 +61,13 @@ function Login({ sesionExpirada }) {
     setLoading(true)
     setError('')
     setInfo('')
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`
-    })
-    setLoading(false)
-    if (error) {
-      setError('No pudimos enviar el correo. Intentá de nuevo.')
-    } else {
+    try {
+      await auth.pedirRecuperacion(email)
+      setLoading(false)
       setInfo('Si el email existe, te enviamos un enlace para recuperar tu contraseña.')
+    } catch {
+      setLoading(false)
+      setError('No pudimos enviar el correo. Intentá de nuevo.')
     }
   }
 

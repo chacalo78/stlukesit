@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { supabase } from '../supabase'
+import { auth } from '../api'
 
 const TIMEOUT_MS = 15 * 60 * 1000
 const CHECK_INTERVAL_MS = 15 * 1000
@@ -42,7 +42,7 @@ function useIdleLogout(active, onIdleLogout) {
     const intervalId = setInterval(() => {
       if (Date.now() - lastActivityRef.current >= TIMEOUT_MS) {
         clearInterval(intervalId)
-        supabase.auth.signOut().then(() => callbackRef.current?.())
+        auth.cerrarSesion().catch(() => {}).then(() => callbackRef.current?.())
       }
     }, CHECK_INTERVAL_MS)
 

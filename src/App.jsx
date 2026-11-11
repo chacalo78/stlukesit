@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import { auth } from './api'
 import Login from './components/Login'
 import UpdatePassword from './components/UpdatePassword'
 import Layout from './components/Layout'
@@ -28,12 +28,12 @@ function App() {
   const { role, nombre, sede, cuentaInhabilitada, isSuperAdmin, sedeScoped, canManageEquipos, canManageUsers, canExportDB, canManageRepuestos, canViewDashboard, canViewHistorial, canViewPrestamos, canViewFeedback, requiresApproval, canApproveChanges, canViewAprobaciones, canViewBajasDefinitivas, loading: roleLoading } = useUserRole(session?.user)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    auth.obtenerSesion().then((session) => {
       setSession(session)
       setLoading(false)
     })
 
-    supabase.auth.onAuthStateChange((event, session) => {
+    return auth.alCambiarSesion((session, event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true)
       }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { auth, usuarios } from '../api'
 
 function useUserRole(user) {
   const [role, setRole] = useState(null)
@@ -24,15 +24,11 @@ function useUserRole(user) {
     setCuentaInhabilitada(false)
     setLoading(true)
     async function cargarRol() {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('email', user.email)
-        .single()
+      const data = await usuarios.miPerfil()
 
       if (data?.habilitado === false) {
         setCuentaInhabilitada(true)
-        await supabase.auth.signOut()
+        await auth.cerrarSesion().catch(() => {})
         setLoading(false)
         return
       }

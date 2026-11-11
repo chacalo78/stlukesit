@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { auth } from '../api'
 import { ROLE_LABELS, ROLE_BADGE } from '../roles'
 import ModalCambiarPassword from './ModalCambiarPassword'
 import ModalReportarProblema from './ModalReportarProblema'
@@ -203,7 +203,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
               Cambiar contraseña
             </button>
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => auth.cerrarSesion().catch(() => {})}
               style={{
                 padding: '7px 12px', background: 'transparent', flexShrink: 0,
                 border: '1px solid #3a5a3d', borderRadius: '6px',
@@ -221,7 +221,7 @@ function Layout({ session, nombre, role, sede, children, currentSection, onSecti
         </div>
 
         {modalPasswordOpen && (
-          <ModalCambiarPassword email={session.user.email} onClose={() => setModalPasswordOpen(false)} />
+          <ModalCambiarPassword onClose={() => setModalPasswordOpen(false)} />
         )}
 
         {modalReporteOpen && (
