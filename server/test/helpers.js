@@ -21,10 +21,16 @@ export async function crearDbDeTest() {
   const nombre = `stlukesit_test_${randomBytes(6).toString('hex')}`;
   // multipleStatements solo en esta conexión auxiliar, nunca en el pool de la app.
   const admin = await mysql.createConnection({ ...cfg, multipleStatements: true });
+  let creada = false;
   try {
     await admin.query(`CREATE DATABASE \`${nombre}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    creada = true;
     await admin.query(`USE \`${nombre}\``);
     await admin.query(readFileSync(SCHEMA, 'utf8'));
+  } catch (err) {
+    // Si falló el schema, no dejar la base huérfana.
+    if (creada) await admin.query(`DROP DATABASE IF EXISTS \`${nombre}\``).catch(() => {});
+    throw err;
   } finally {
     await admin.end();
   }
@@ -35,6 +41,7 @@ export async function crearDbDeTest() {
 
 // Cierra el pool y borra la base temporal.
 export async function limpiar(pool) {
+  if (!pool) return;
   const nombre = pool.nombreDbTest;
   await pool.end();
   if (!nombre?.startsWith('stlukesit_test_')) return;
