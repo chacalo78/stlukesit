@@ -52,3 +52,14 @@ export async function limpiar(pool) {
     await admin.end();
   }
 }
+
+// Inicia sesión por la API y devuelve la cookie lista para reenviar ("sid=..."). El agente de supertest no
+// reenvía cookies Secure por http, así que los tests la reenvían a mano con .set('Cookie', cookie).
+export async function iniciarSesionComo(app, email, password, origin = 'https://inventario.chacalo.com.ar') {
+  const request = (await import('supertest')).default;
+  const r = await request(app).post('/api/auth/login')
+    .set('Origin', origin).set('X-Forwarded-Proto', 'https').send({ email, password });
+  if (r.status !== 200) throw new Error(`iniciarSesionComo: login falló con ${r.status}`);
+  const sid = (r.headers['set-cookie'] || []).find((c) => c.startsWith('sid='));
+  return sid.split(';')[0];
+}

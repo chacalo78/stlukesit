@@ -9,7 +9,7 @@ let db, app;
 
 beforeAll(async () => {
   db = await crearDbDeTest();
-  app = crearApp({ db, mailer: null, config: { corsOrigins: [OK] } });
+  app = crearApp({ db, mailer: null, config: { corsOrigins: [OK], sessionSecret: 'secreto-de-test' } });
 });
 afterAll(() => limpiar(db));
 
@@ -20,7 +20,7 @@ describe('health', () => {
     expect(r.body).toEqual({ ok: true, db: true });
   });
   it('503 si la base falla', async () => {
-    const roto = crearApp({ db: { query: async () => { throw new Error('x'); } }, config: { corsOrigins: [OK] } });
+    const roto = crearApp({ db: { query: async () => { throw new Error('x'); } }, config: { corsOrigins: [OK], sessionSecret: 'secreto-de-test' } });
     const r = await request(roto).get('/health');
     expect(r.status).toBe(503);
     expect(r.body.ok).toBe(false);
@@ -98,7 +98,7 @@ describe('errores', () => {
     expect(r.body).toEqual({ error: 'No encontrado' });
   });
   it('500 no filtra el mensaje; errorHttp respeta status', async () => {
-    const a = crearApp({ db, config: { corsOrigins: [OK] }, extra: (ap) => {
+    const a = crearApp({ db, config: { corsOrigins: [OK], sessionSecret: 'secreto-de-test' }, extra: (ap) => {
       ap.get('/boom', () => { throw new Error('secreto interno'); });
       ap.get('/conflicto', () => { throw errorHttp(409, 'Ya existe'); });
     } });

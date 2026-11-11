@@ -13,6 +13,7 @@ export function leerConfig(env = process.env) {
       database: env.DB_NAME,
     },
     sessionSecret: env.SESSION_SECRET,
+    cookieDomain: env.COOKIE_DOMAIN || undefined, // '.chacalo.com.ar' en producción
     smtp: {
       host: env.SMTP_HOST,
       port: Number(env.SMTP_PORT) || 465,

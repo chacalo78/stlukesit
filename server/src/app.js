@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import { errorHttp } from './errores.js';
+import { montarRutas } from './rutas/index.js';
 
 const LECTURA = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -61,6 +62,7 @@ export function crearApp({ db, mailer, config, extra }) {
     }
   });
 
+  montarRutas(app, { db, config });
   extra?.(app);
 
   app.use((req, res, next) => next(errorHttp(404, 'No encontrado')));
