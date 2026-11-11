@@ -35,3 +35,6 @@ supabase/.temp/
 
 # Datos de acceso sueltos (nunca subir)
 hosting.txt
+
+# Espacio de trabajo de subagentes (local)
+.superpowers/
