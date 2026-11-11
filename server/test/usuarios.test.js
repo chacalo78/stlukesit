@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import bcrypt from 'bcryptjs';
 import { crearApp } from '../src/app.js';
@@ -356,7 +356,7 @@ describe('POST /api/usuarios/:id/password', () => {
   });
 
   it('403: admin sobre admin/super_admin y sobre sí mismo (el propio va por /api/auth/password); director/coordinador; 404', async () => {
-    for (const id of ['ad2', 'sa', 'ad']) expect((await llamar('post', `/api/usuarios/${id}/password`, c.ad, { passwordNueva: 'abcdef' })).status).toBe(403);
+    for (const id of ['ad2', 'sa']) expect((await llamar('post', `/api/usuarios/${id}/password`, c.ad, { passwordNueva: 'abcdef' })).status).toBe(403);
     expect((await llamar('post', '/api/usuarios/di/password', c.co, { passwordNueva: 'abcdef' })).status).toBe(403);
     expect((await llamar('post', '/api/usuarios/co/password', c.di, { passwordNueva: 'abcdef' })).status).toBe(403);
     expect((await llamar('post', '/api/usuarios/nada/password', c.ad, { passwordNueva: 'abcdef' })).status).toBe(404);
@@ -392,6 +392,97 @@ describe('POST /api/usuarios/:id/invitacion', () => {
     expect((await llamar('post', '/api/usuarios/t11/invitacion', c.ad)).status).toBe(403);
     expect((await llamar('post', '/api/usuarios/nada/invitacion', c.ad)).status).toBe(404);
     expect((await llamar('post', '/api/usuarios/t10/invitacion', c.di)).status).toBe(403);
+  });
+});
+
+describe('fix round 1', () => {
+  it('R25a: reset sobre uno mismo -> 400 y nada cambia (incluido super_admin)', async () => {
+    for (const k of ['ad', 'sa']) {
+      const id = k;
+      const antes = (await fila(id)).password_hash;
+      const r = await llamar('post', `/api/usuarios/${id}/password`, c[k], { passwordNueva: 'abcdef' });
+      expect(r.status).toBe(400);
+      expect(r.body).toEqual({ error: 'Para cambiar tu propia contraseña usá «Cambiar contraseña»' });
+      expect((await fila(id)).password_hash).toBe(antes);
+    }
+    expect(await movs()).toHaveLength(0);
+  });
+
+  it('I-2: el reset invalida enlaces de recuperación/invitación pendientes', async () => {
+    await usuario('t12', 't12@c.test', 'coordinador');
+    const { crearToken } = await import('../src/auth/tokens.js');
+    const viejo = await crearToken(db, 't12', 'recuperacion');
+    const inv = await crearToken(db, 't12', 'invitacion');
+    expect((await llamar('post', '/api/usuarios/t12/password', c.ad, { passwordNueva: 'clave-del-admin' })).status).toBe(200);
+    for (const t of [viejo, inv]) {
+      const r = await llamar('post', '/api/auth/token', null, { token: t, password: 'clave-atacante' });
+      expect(r.status).toBe(400);
+      expect(r.body.error).toBe('El enlace ya fue usado o venció');
+    }
+    expect(await bcrypt.compare('clave-del-admin', (await fila('t12')).password_hash)).toBe(true);
+  });
+
+  it('I-2: inhabilitar también invalida los enlaces pendientes', async () => {
+    await usuario('t13', 't13@c.test', 'director');
+    const { crearToken } = await import('../src/auth/tokens.js');
+    await crearToken(db, 't13', 'recuperacion');
+    expect((await llamar('post', '/api/usuarios/t13/habilitado', c.ad, { habilitado: false })).status).toBe(200);
+    expect((await db.query("SELECT id FROM tokens_password WHERE usuario_id = 't13' AND usado_at IS NULL"))[0]).toHaveLength(0);
+  });
+
+  describe('TOCTOU (el rol cambia entre la autorización y la escritura)', () => {
+    const promover = (id) => (req, objetivo) => db.query("UPDATE usuarios SET rol = 'admin' WHERE id = ?", [objetivo]);
+    afterEach(() => { delete app.locals.antesDeEscribir; });
+
+    it('PATCH solo con nombre no toca el rol aunque cambió en el medio; el rol nuevo ya no es gestionable -> 403 y nada cambia', async () => {
+      await usuario('r1', 'r1@c.test', 'coordinador', { nombre: 'Rita' });
+      app.locals.antesDeEscribir = async () => { await db.query("UPDATE usuarios SET rol = 'director' WHERE id = 'r1'"); };
+      const r = await llamar('patch', '/api/usuarios/r1', c.ad, { nombre: 'Rita 2' });
+      expect(r.status).toBe(200);
+      expect(r.body).toMatchObject({ nombre: 'Rita 2', rol: 'director' }); // el rol que cambió en el medio se conserva
+      expect((await movs())[0].descripcion).toBe('Usuario modificado: Rita 2 (r1@c.test) — Rol: Director de Sede');
+    });
+
+    it('promovido a admin entre la autorización y la escritura -> 403 en todas las escrituras, sin cambios', async () => {
+      const casos = [
+        ['patch', '/api/usuarios/r2', { nombre: 'Hack' }],
+        ['delete', '/api/usuarios/r2'],
+        ['post', '/api/usuarios/r2/habilitado', { habilitado: false }],
+        ['post', '/api/usuarios/r2/password', { passwordNueva: 'abcdef' }],
+      ];
+      for (const [m, u, b] of casos) {
+        await db.query('DELETE FROM usuarios WHERE id = ?', ['r2']);
+        await usuario('r2', 'r2@c.test', 'coordinador', { nombre: 'Rosa' });
+        const hash = (await fila('r2')).password_hash;
+        app.locals.antesDeEscribir = promover();
+        const r = await llamar(m, u, c.ad, b);
+        expect(r.status, `${m} ${u}`).toBe(403);
+        const f = await fila('r2');
+        expect(f).toMatchObject({ rol: 'admin', nombre: 'Rosa', habilitado: 1, password_hash: hash });
+        expect(await movs()).toHaveLength(0);
+        delete app.locals.antesDeEscribir;
+      }
+    });
+
+    it('borrado entre la autorización y la escritura -> 404', async () => {
+      await usuario('r3', 'r3@c.test', 'coordinador');
+      app.locals.antesDeEscribir = async () => { await db.query("DELETE FROM usuarios WHERE id = 'r3'"); };
+      expect((await llamar('patch', '/api/usuarios/r3', c.ad, { nombre: 'X' })).status).toBe(404);
+    });
+  });
+
+  it('R25b: si falla la creación del token tras el alta -> 201 con mailError', async () => {
+    await db.query('RENAME TABLE tokens_password TO tokens_password_x');
+    try {
+      const r = await llamar('post', '/api/usuarios', c.ad, { email: 'sintoken@c.test', nombre: 'Sin Token', rol: 'director' });
+      expect(r.status).toBe(201);
+      expect(typeof r.body.mailError).toBe('string');
+      expect(r.body.usuario).toMatchObject({ email: 'sintoken@c.test', tieneLogin: false });
+      expect(mailer.enviados).toHaveLength(0);
+    } finally {
+      await db.query('RENAME TABLE tokens_password_x TO tokens_password');
+    }
+    expect(await fila(await (async () => (await db.query("SELECT id FROM usuarios WHERE email='sintoken@c.test'"))[0][0].id)())).toBeTruthy();
   });
 });
 

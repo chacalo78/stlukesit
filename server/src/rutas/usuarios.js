@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { errorHttp } from '../errores.js';
 import { requiereSesion, cerrarSesionesDe } from '../auth/sesion.js';
-import { ACCIONES, exige, alcanceUsuarios } from '../auth/permisos.js';
+import { ACCIONES, exige, puede, alcanceUsuarios } from '../auth/permisos.js';
 import { crearToken } from '../auth/tokens.js';
 import * as plantillas from '../mail/plantillas.js';
 import { ROLES, ROLE_LABELS } from '../util/roles.js';
@@ -64,6 +64,25 @@ const movimiento = (conn, tipo, descripcion, usuario) => conn.query(
   [randomUUID(), tipo, descripcion, usuario],
 );
 
+// Dentro de la transacción: bloquea la fila del objetivo y vuelve a autorizar con el rol ACTUAL (evita TOCTOU).
+// `antesDeEscribir` es un punto de inyección solo para tests.
+async function bloquear(conn, req, accion, id, rolNuevo) {
+  await req.app.locals.antesDeEscribir?.(req, id);
+  const [[f]] = await conn.query('SELECT id, email, nombre, rol, sede, habilitado FROM usuarios WHERE id = ? FOR UPDATE', [id]);
+  if (!f) throw errorHttp(404, 'No encontrado');
+  const recurso = { id: f.id, rol: f.rol };
+  if (rolNuevo) recurso.rolNuevo = rolNuevo;
+  if (!puede(req.usuario, accion, recurso)) throw errorHttp(403, 'No tenés permiso para realizar esta acción');
+  return f;
+}
+
+// Los enlaces de recuperación/invitación pendientes dejan de valer.
+const invalidarTokens = (conn, id) => conn.query(
+  'UPDATE tokens_password SET usado_at = UTC_TIMESTAMP(3) WHERE usuario_id = ? AND usado_at IS NULL', [id]);
+
+const noEsUnoMismo = (req, _res, next) => next(req.params.id === req.usuario.id
+  ? errorHttp(400, 'Para cambiar tu propia contraseña usá «Cambiar contraseña»') : undefined);
+
 const leer = async (db, id) => (await db.query(`SELECT ${COLUMNAS} FROM usuarios WHERE id = ?`, [id]))[0][0];
 
 // Carga el objetivo (404 si no existe) y lo deja en req.objetivo; el recurso para permisos es { id, rol (+ rolNuevo) }.
@@ -88,9 +107,13 @@ async function mandarMail(mailer, msg) {
 
 async function enviarInvitacion(req, u) {
   const { db, mailer, config } = req.app.locals;
-  const token = await crearToken(db, u.id, 'invitacion');
-  const link = `${String(config.appUrl).replace(/\/+$/, '')}/?token=${encodeURIComponent(token)}&tipo=invitacion`;
-  return mandarMail(mailer, { para: u.email, ...plantillas.invitacion(link, u.nombre) });
+  try {
+    const token = await crearToken(db, u.id, 'invitacion');
+    const link = `${String(config.appUrl).replace(/\/+$/, '')}/?token=${encodeURIComponent(token)}&tipo=invitacion`;
+    return await mandarMail(mailer, { para: u.email, ...plantillas.invitacion(link, u.nombre) });
+  } catch (e) {
+    return String(e?.message || 'No se pudo enviar la invitación');
+  }
 }
 
 const conMailError = (base, mailError) => (mailError === undefined ? base : { ...base, mailError });
@@ -134,16 +157,16 @@ export function crearRutasUsuarios() {
     const { db } = req.app.locals;
     const o = req.objetivo;
     const d = req.datos;
-    const nuevo = {
-      nombre: d.nombre ?? o.nombre,
-      rol: d.rol ?? o.rol,
-      sede: d.sede !== undefined ? d.sede : o.sede,
-    };
     await enTransaccion(db, async (conn) => {
-      await conn.query('UPDATE usuarios SET nombre = ?, rol = ?, sede = ? WHERE id = ?', [nuevo.nombre, nuevo.rol, nuevo.sede, o.id]);
+      const f = await bloquear(conn, req, ACCIONES.USUARIOS_GESTIONAR, o.id, d.rol);
+      const sets = {};
+      for (const k of ['nombre', 'rol', 'sede']) if (d[k] !== undefined) sets[k] = d[k]; // solo lo enviado
+      const cols = Object.keys(sets);
+      await conn.query(`UPDATE usuarios SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...cols.map((k) => sets[k]), o.id]);
+      const nuevo = { ...f, ...sets };
       await movimiento(
         conn, 'Modificación usuario',
-        `Usuario modificado: ${nuevo.nombre} (${o.email}) — Rol: ${ROLE_LABELS[nuevo.rol]}${nuevo.sede ? `, Sede: ${nuevo.sede}` : ''}`,
+        `Usuario modificado: ${nuevo.nombre} (${f.email}) — Rol: ${ROLE_LABELS[nuevo.rol]}${nuevo.sede ? `, Sede: ${nuevo.sede}` : ''}`,
         actor(req),
       );
     });
@@ -154,8 +177,9 @@ export function crearRutasUsuarios() {
     const { db } = req.app.locals;
     const o = req.objetivo;
     await enTransaccion(db, async (conn) => {
+      const f = await bloquear(conn, req, ACCIONES.USUARIOS_BORRAR, o.id);
       await conn.query('DELETE FROM usuarios WHERE id = ?', [o.id]); // tokens_password: ON DELETE CASCADE
-      await movimiento(conn, 'Baja usuario', `Usuario dado de baja: ${o.nombre || o.email}`, actor(req));
+      await movimiento(conn, 'Baja usuario', `Usuario dado de baja: ${f.nombre || f.email}`, actor(req));
     });
     await cerrarSesionesDe(db, o.id);
     res.json({ ok: true });
@@ -169,26 +193,29 @@ export function crearRutasUsuarios() {
     const o = req.objetivo;
     const { habilitado } = req.datos;
     await enTransaccion(db, async (conn) => {
+      const f = await bloquear(conn, req, habilitado ? ACCIONES.USUARIOS_GESTIONAR : ACCIONES.USUARIOS_INHABILITAR, o.id);
       await conn.query('UPDATE usuarios SET habilitado = ? WHERE id = ?', [habilitado ? 1 : 0, o.id]);
+      if (!habilitado) await invalidarTokens(conn, o.id);
       await movimiento(
         conn, habilitado ? 'Habilitado' : 'Inhabilitado',
-        `Usuario ${habilitado ? 'habilitado' : 'inhabilitado'}: ${o.nombre || o.email}`, actor(req),
+        `Usuario ${habilitado ? 'habilitado' : 'inhabilitado'}: ${f.nombre || f.email}`, actor(req),
       );
     });
     if (!habilitado) await cerrarSesionesDe(db, o.id);
     res.json(publico(await leer(db, o.id)));
   }));
 
-  r.post('/:id/password', validar(passwordSchema), exige(ACCIONES.USUARIOS_GESTIONAR, cargarObjetivo), envolver(async (req, res) => {
+  r.post('/:id/password', validar(passwordSchema), noEsUnoMismo, exige(ACCIONES.USUARIOS_GESTIONAR, cargarObjetivo), envolver(async (req, res) => {
     const { db, mailer } = req.app.locals;
     const o = req.objetivo;
     const hash = await bcrypt.hash(req.datos.passwordNueva, COSTO); // fuera de la transacción
     await enTransaccion(db, async (conn) => {
+      const f = await bloquear(conn, req, ACCIONES.USUARIOS_GESTIONAR, o.id);
       await conn.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, o.id]);
-      await movimiento(conn, 'Restablecimiento de contraseña', `Contraseña restablecida para: ${o.nombre || o.email}`, actor(req));
+      await invalidarTokens(conn, o.id);
+      await movimiento(conn, 'Restablecimiento de contraseña', `Contraseña restablecida para: ${f.nombre || f.email}`, actor(req));
     });
-    // Si el objetivo es el propio actor (super_admin), se conserva la sesión actual.
-    await cerrarSesionesDe(db, o.id, o.id === req.usuario.id ? req.sessionID : null);
+    await cerrarSesionesDe(db, o.id);
     const mailError = await mandarMail(mailer, { para: o.email, ...plantillas.passwordRestablecida() });
     res.json(conMailError({ ok: true }, mailError));
   }));
