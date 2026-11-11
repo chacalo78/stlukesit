@@ -1,6 +1,7 @@
 import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
 import { crearRutasAuth } from '../auth/rutas.js';
+import { crearRutasUsuarios } from './usuarios.js';
 import { NOMBRE_COOKIE, MAX_AGE_MS, opcionesCookie } from '../auth/sesion.js';
 
 const MySQLStore = MySQLStoreFactory(session);
@@ -29,4 +30,5 @@ export function montarRutas(app, { db, config }) {
   }));
 
   app.use('/api/auth', crearRutasAuth({ ahora: config.ahora }));
+  app.use('/api/usuarios', crearRutasUsuarios());
 }
