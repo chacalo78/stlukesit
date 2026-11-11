@@ -8,10 +8,10 @@ const LECTURA = new Set(['GET', 'HEAD', 'OPTIONS']);
 function cors(permitidos) {
   return (req, res, next) => {
     const origin = req.headers.origin;
+    res.vary('Origin');
     if (origin && permitidos.has(origin)) {
       res.set('Access-Control-Allow-Origin', origin);
       res.set('Access-Control-Allow-Credentials', 'true');
-      res.vary('Origin');
       if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
         res.set('Access-Control-Allow-Headers', req.headers['access-control-request-headers'] || 'Content-Type');
@@ -29,7 +29,9 @@ function protegerEscrituras(permitidos) {
     if (!req.headers.origin || !permitidos.has(req.headers.origin)) {
       return next(errorHttp(403, 'Origen no permitido'));
     }
-    if (!req.is('application/json')) {
+    const tieneCuerpo = req.headers['transfer-encoding'] !== undefined || Number(req.headers['content-length'] || 0) > 0;
+    const tipo = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (tieneCuerpo && tipo !== 'application/json') {
       return next(errorHttp(415, 'El contenido debe ser application/json'));
     }
     next();

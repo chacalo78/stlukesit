@@ -47,6 +47,26 @@ describe('Origin y Content-Type en escrituras', () => {
     expect(r.status).toBe(415);
     expect(typeof r.body.error).toBe('string');
   });
+  it('DELETE sin cuerpo con origen válido pasa el chequeo (404)', async () => {
+    const r = await request(app).delete('/api/x').set('Origin', OK);
+    expect(r.status).toBe(404);
+  });
+  it('POST sin cuerpo pasa el chequeo (404)', async () => {
+    const r = await request(app).post('/api/x').set('Origin', OK);
+    expect(r.status).toBe(404);
+  });
+  it('POST con application/json; charset=utf-8 pasa', async () => {
+    const r = await request(app).post('/api/x').set('Origin', OK).set('Content-Type', 'Application/JSON; charset=utf-8').send('{"a":1}');
+    expect(r.status).toBe(404);
+  });
+  it.each(['put', 'patch'])('%s con cuerpo text/plain -> 415', async (m) => {
+    const r = await request(app)[m]('/api/x').set('Origin', OK).set('Content-Type', 'text/plain').send('hola');
+    expect(r.status).toBe(415);
+  });
+  it('Vary: Origin también con origen no permitido', async () => {
+    const r = await request(app).get('/health').set('Origin', 'https://evil.example');
+    expect(r.headers.vary).toMatch(/Origin/);
+  });
   it('JSON malformado -> 400', async () => {
     const r = await request(app).post('/api/x').set('Origin', OK).set('Content-Type', 'application/json').send('{mal');
     expect(r.status).toBe(400);
