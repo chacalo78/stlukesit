@@ -9,11 +9,16 @@ const types = { getTypeParser: (oid, fmt) => (crudo.has(oid) ? (s) => s : pg.typ
 export async function abrirPg(url) {
   const c = new pg.Client({ connectionString: url, types });
   await c.connect();
+  await c.query("SET TIME ZONE 'UTC'");
+  await c.query("SET DateStyle = 'ISO'");
   return c;
 }
 
 export async function abrirMysql(url) {
-  return mysql.createConnection({ uri: url, dateStrings: true, timezone: 'Z', charset: 'utf8mb4' });
+  const c = await mysql.createConnection({ uri: url, dateStrings: true, timezone: 'Z', charset: 'utf8mb4' });
+  await c.query("SET SESSION sql_mode = 'STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'");
+  await c.query("SET SESSION time_zone = '+00:00'");
+  return c;
 }
 
 export function resolverUrls(opts = {}, env = process.env) {

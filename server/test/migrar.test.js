@@ -96,7 +96,8 @@ describe('aPostgres (MySQL -> Postgres)', () => {
 });
 
 // ---- Integración: requiere Postgres local con la copia y MariaDB local (ver test/helpers.js) ----
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import mysql2 from 'mysql2/promise';
 import pg from 'pg';
 import { afterAll, beforeAll } from 'vitest';
 import { crearDbDeTest, limpiar } from './helpers.js';
@@ -105,81 +106,162 @@ import { verificar } from '../scripts/verificar.js';
 
 const PG_COPIA = process.env.TEST_PG_COPIA_URL || 'postgresql://stlukesit_pg:pg_local_pw@127.0.0.1:5432/stlukesit_pg_copia';
 const urlDe = (base, db) => { const u = new URL(base); u.pathname = `/${db}`; return u.toString(); };
+const nombreDe = (url) => new URL(url).pathname.slice(1);
 const mysqlUrl = (pool) => {
   const c = pool.pool.config.connectionConfig;
   return `mysql://${encodeURIComponent(c.user)}:${encodeURIComponent(c.password)}@${c.host}:${c.port}/${c.database}`;
 };
 const silencio = { log: () => {}, warn: () => {} };
 
-async function pgAdmin(fn, base = PG_COPIA) {
-  const c = new pg.Client({ connectionString: urlDe(base, 'postgres') });
+async function pgAdmin(fn) {
+  const c = new pg.Client({ connectionString: urlDe(PG_COPIA, 'postgres') });
   await c.connect();
   try { return await fn(c); } finally { await c.end(); }
 }
-
-describe('integración: migración completa', () => {
-  let pool, urlMy, nombreClon, urlClon;
-  beforeAll(async () => {
-    pool = await crearDbDeTest();
-    urlMy = mysqlUrl(pool);
-  });
-  afterAll(async () => {
-    if (nombreClon) await pgAdmin((c) => c.query(`DROP DATABASE IF EXISTS "${nombreClon}"`));
-    await limpiar(pool);
-  });
-
-  it('Postgres (copia) -> MySQL: verificar OK en todas las tablas; fechas y acentos exactos', async () => {
-    const avisos = [];
-    await migrar({ desde: 'supabase', hacia: 'mysql', pgUrl: PG_COPIA, mysqlUrl: urlMy, log: () => {}, warn: (m) => avisos.push(m) });
-    const res = await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy });
-    expect(res.map((r) => r.tabla).sort()).toEqual(
-      ['equipos', 'feedback_desarrollador', 'movimientos', 'prestamos', 'repuestos', 'solicitudes_cambio', 'usuarios']);
-    for (const r of res) expect(r, r.tabla).toMatchObject({ ok: true });
-    expect(res.find((r) => r.tabla === 'equipos').mysql).toBeGreaterThan(0);
-    // Idempotente: una segunda corrida deja lo mismo.
-    await migrar({ desde: 'supabase', hacia: 'mysql', pgUrl: PG_COPIA, mysqlUrl: urlMy, ...silencio });
-    for (const r of await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy })) expect(r.ok, r.tabla).toBe(true);
-  });
-
-  it('verificar detecta diferencias (DIFERENCIA en la tabla alterada, OK en las demás)', async () => {
-    await migrar({ desde: 'supabase', hacia: 'mysql', pgUrl: PG_COPIA, mysqlUrl: urlMy, ...silencio });
-    await pool.query("UPDATE repuestos SET cantidad = cantidad + 1 LIMIT 1");
-    const res = await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy });
-    expect(res.filter((r) => !r.ok).map((r) => r.tabla)).toEqual(['repuestos']);
-  });
-
-  it('ida y vuelta: Postgres -> MySQL -> clon de Postgres; verificar OK contra clon y contra el original', async () => {
-    nombreClon = `stlukesit_pg_test_${randomBytes(5).toString('hex')}`;
-    await pgAdmin((c) => c.query(`CREATE DATABASE "${nombreClon}" TEMPLATE stlukesit_pg_copia`));
-    urlClon = urlDe(PG_COPIA, nombreClon);
-
-    await migrar({ desde: 'supabase', hacia: 'mysql', pgUrl: PG_COPIA, mysqlUrl: urlMy, ...silencio });
-    const antes = await contar(urlClon);
-    await migrar({ desde: 'mysql', hacia: 'supabase', pgUrl: urlClon, mysqlUrl: urlMy, ...silencio });
-    expect(await contar(urlClon)).toEqual(antes); // auth.users y aprobaciones intactos
-
-    for (const url of [urlClon, PG_COPIA]) {
-      for (const r of await verificar({ pgUrl: url, mysqlUrl: urlMy })) expect(r.ok, r.tabla).toBe(true);
-    }
-
-    // Cambio de contraseña posterior al corte: solo se actualiza encrypted_password del que ya existe.
-    const [{ email }] = await consulta(urlClon, 'SELECT email FROM auth.users ORDER BY email LIMIT 1');
-    const my = await (await import('mysql2/promise')).createConnection(urlMy);
-    await my.query('UPDATE usuarios SET password_hash = ? WHERE email = ?', ['$2a$12$nuevoHashDePrueba................................................', email]);
-    await my.end();
-    await migrar({ desde: 'mysql', hacia: 'supabase', pgUrl: urlClon, mysqlUrl: urlMy, ...silencio });
-    const [{ encrypted_password: ep }] = await consulta(urlClon, 'SELECT encrypted_password FROM auth.users WHERE email = $1', [email]);
-    expect(ep).toMatch(/^\$2a\$12\$nuevoHash/);
-    expect(await contar(urlClon)).toEqual(antes);
-  });
-});
-
 async function consulta(url, sql, params) {
   const c = new pg.Client({ connectionString: url });
   await c.connect();
   try { return (await c.query(sql, params)).rows; } finally { await c.end(); }
 }
 async function contar(url) {
-  const [r] = await consulta(url, `SELECT (SELECT count(*) FROM auth.users) AS auth, (SELECT count(*) FROM aprobaciones) AS aprob`);
+  const [r] = await consulta(url, 'SELECT (SELECT count(*) FROM auth.users) AS auth, (SELECT count(*) FROM aprobaciones) AS aprob');
   return r;
 }
+const dif = (res) => res.filter((r) => !r.ok).map((r) => r.tabla).sort();
+
+describe('integración: migración completa', () => {
+  let pool, urlMy, nombreMy;
+  const clones = [];
+  async function clonar() {
+    const nombre = `stlukesit_pg_test_${randomBytes(5).toString('hex')}`;
+    await pgAdmin((c) => c.query(`CREATE DATABASE "${nombre}" TEMPLATE stlukesit_pg_copia`));
+    clones.push(nombre);
+    return urlDe(PG_COPIA, nombre);
+  }
+  const ida = (pgUrl, extra = {}) => migrar({ desde: 'supabase', hacia: 'mysql', pgUrl, mysqlUrl: urlMy, confirmar: nombreMy, ...silencio, ...extra });
+  const vuelta = (pgUrl, extra = {}) => migrar({ desde: 'mysql', hacia: 'supabase', pgUrl, mysqlUrl: urlMy, confirmar: nombreDe(pgUrl), ...silencio, ...extra });
+  async function conMy(fn) {
+    const c = await mysql2.createConnection(urlMy);
+    try { return await fn(c); } finally { await c.end(); }
+  }
+
+  beforeAll(async () => {
+    pool = await crearDbDeTest();
+    urlMy = mysqlUrl(pool);
+    nombreMy = pool.nombreDbTest;
+  });
+  afterAll(async () => {
+    for (const n of clones) await pgAdmin((c) => c.query(`DROP DATABASE IF EXISTS "${n}"`));
+    await limpiar(pool);
+  });
+
+  it('Postgres (copia) -> MySQL: verificar OK en todas las tablas; idempotente', async () => {
+    await ida(PG_COPIA);
+    const res = await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy });
+    expect(res.map((r) => r.tabla).sort()).toEqual(
+      ['equipos', 'feedback_desarrollador', 'movimientos', 'prestamos', 'repuestos', 'solicitudes_cambio', 'usuarios']);
+    for (const r of res) expect(r, r.tabla).toMatchObject({ ok: true });
+    expect(res.find((r) => r.tabla === 'equipos').mysql).toBeGreaterThan(0);
+    await ida(PG_COPIA);
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual([]);
+  });
+
+  it('verificar detecta diferencias (DIFERENCIA solo en la tabla alterada)', async () => {
+    await ida(PG_COPIA);
+    await pool.query('UPDATE repuestos SET cantidad = cantidad + 1 LIMIT 1');
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual(['repuestos']);
+  });
+
+  it('--confirmar con un nombre distinto aborta sin tocar datos (ambos sentidos)', async () => {
+    await ida(PG_COPIA);
+    await expect(ida(PG_COPIA, { confirmar: 'otra_base' })).rejects.toThrow(/--confirmar/);
+    await expect(ida(PG_COPIA, { confirmar: undefined })).rejects.toThrow(/--confirmar/);
+    const clon = await clonar();
+    await expect(vuelta(clon, { confirmar: 'otra_base' })).rejects.toThrow(/--confirmar/);
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual([]);
+    expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual([]);
+  });
+
+  it('ida y vuelta con cambios en MySQL: el clon los recibe; la copia original difiere solo en las tablas tocadas', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    const antes = await contar(clon);
+    await conMy(async (my) => {
+      const [[eq]] = await my.query('SELECT id FROM equipos LIMIT 1');
+      await my.query("UPDATE equipos SET observaciones = 'Revisión — Ñandú' WHERE id = ?", [eq.id]);
+      await my.query("INSERT INTO movimientos (id, equipo_id, tipo_movimiento, descripcion, usuario) VALUES (?, ?, 'Modificación', 'Acción — Ñandú ✓', 'Tést')",
+        [randomUUID(), eq.id]);
+      await my.query('DELETE FROM repuestos LIMIT 1');
+      await my.query('UPDATE usuarios SET habilitado = 1 - habilitado LIMIT 1');
+    });
+    await vuelta(clon);
+    expect(await contar(clon)).toEqual(antes);
+    expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual([]);
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual(['equipos', 'movimientos', 'repuestos', 'usuarios']);
+    const [m] = await consulta(clon, "SELECT descripcion FROM movimientos WHERE usuario = 'Tést'");
+    expect(m.descripcion).toBe('Acción — Ñandú ✓');
+  });
+
+  it('un cambio de contraseña en MySQL solo actualiza auth.users.encrypted_password', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    const antes = await contar(clon);
+    const [{ email }] = await consulta(clon, 'SELECT email FROM auth.users ORDER BY email LIMIT 1');
+    await conMy((my) => my.query('UPDATE usuarios SET password_hash = ? WHERE email = ?', ['$2a$12$nuevoHashDePrueba'.padEnd(60, '.'), email]));
+    await vuelta(clon);
+    const [{ encrypted_password: ep }] = await consulta(clon, 'SELECT encrypted_password FROM auth.users WHERE email = $1', [email]);
+    expect(ep).toMatch(/^\$2a\$12\$nuevoHash/);
+    expect(await contar(clon)).toEqual(antes);
+    expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual([]);
+  });
+
+  it('sentido inverso con aprobaciones no vacía: aborta, hace rollback y deja todo intacto', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    const [{ id: eqId }] = await consulta(clon, 'SELECT id FROM equipos LIMIT 1');
+    await consulta(clon, "INSERT INTO aprobaciones (equipo_id, tipo) VALUES ($1, 'Baja')", [eqId]);
+    await conMy((my) => my.query('DELETE FROM repuestos LIMIT 1'));
+    await expect(vuelta(clon)).rejects.toThrow(/aprobaciones/);
+    expect((await contar(clon)).aprob).toBe('1');
+    // El clon sigue igual que la copia original (el borrado en MySQL no llegó).
+    const [{ n }] = await consulta(clon, 'SELECT count(*) AS n FROM repuestos');
+    const [{ n: n0 }] = await consulta(PG_COPIA, 'SELECT count(*) AS n FROM repuestos');
+    expect(n).toBe(n0);
+    expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual(['repuestos']);
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual(['repuestos']);
+  });
+
+  it('falla a mitad de la carga hacia MySQL: rollback, MySQL queda igual que antes', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    // Valor que excede VARCHAR(255): con sql_mode estricto el INSERT falla después de haber borrado todo.
+    await consulta(clon, "UPDATE equipos SET tipo = repeat('x', 300) WHERE id = (SELECT id FROM equipos LIMIT 1)");
+    await expect(ida(clon)).rejects.toThrow();
+    expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual([]);
+  });
+
+  it('falla a mitad de la carga hacia Postgres: rollback, el clon queda igual que antes', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    // Restricción solo existente en Postgres: el INSERT de repuestos (último) falla tras borrar y cargar el resto.
+    await consulta(clon, 'ALTER TABLE repuestos ADD CONSTRAINT cant_max CHECK (cantidad < 1000)');
+    const [{ id, cantidad }] = await conMy(async (my) => (await my.query('SELECT id, cantidad FROM repuestos LIMIT 1'))[0]);
+    await conMy((my) => my.query('UPDATE repuestos SET cantidad = 5000, updated_at = updated_at WHERE id = ?', [id]));
+    await expect(vuelta(clon)).rejects.toThrow(/cant_max/);
+    await conMy((my) => my.query('UPDATE repuestos SET cantidad = ?, updated_at = updated_at WHERE id = ?', [cantidad, id]));
+    expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual([]);
+  });
+
+  it('columna nueva sin mapear: migrar (ambos sentidos) y verificar abortan nombrando tabla.columna', async () => {
+    const clon = await clonar();
+    await ida(PG_COPIA);
+    await consulta(clon, 'ALTER TABLE repuestos ADD COLUMN extra_pg text');
+    await expect(ida(clon)).rejects.toThrow(/repuestos\.extra_pg/);
+    await expect(verificar({ pgUrl: clon, mysqlUrl: urlMy })).rejects.toThrow(/repuestos\.extra_pg/);
+    await consulta(clon, 'ALTER TABLE repuestos DROP COLUMN extra_pg');
+    await conMy((my) => my.query('ALTER TABLE equipos ADD COLUMN extra_my VARCHAR(10) NULL'));
+    await expect(vuelta(clon)).rejects.toThrow(/equipos\.extra_my/);
+    await expect(verificar({ pgUrl: clon, mysqlUrl: urlMy })).rejects.toThrow(/equipos\.extra_my/);
+    await conMy((my) => my.query('ALTER TABLE equipos DROP COLUMN extra_my'));
+  });
+});

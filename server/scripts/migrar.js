@@ -1,10 +1,11 @@
 // Migración ida y vuelta Supabase-Postgres <-> MySQL.
-//   node scripts/migrar.js --desde=supabase --hacia=mysql --pg-url=... --mysql-url=...
-//   node scripts/migrar.js --desde=mysql --hacia=supabase --pg-url=... --mysql-url=...
+//   node scripts/migrar.js --desde=supabase --hacia=mysql --pg-url=... --mysql-url=... --confirmar=<nombre-base-destino>
+//   node scripts/migrar.js --desde=mysql --hacia=supabase --pg-url=... --mysql-url=... --confirmar=<nombre-base-destino>
 // URLs también por env PG_URL / MYSQL_URL. Idempotente: en una transacción sobre el destino vacía las
 // tablas de datos y recarga todo. No hace DROP/TRUNCATE. `aprobaciones` no se migra.
 import { fileURLToPath } from 'node:url';
 import { abrirPg, abrirMysql, resolverUrls, parsearArgs } from './lib/conexion.js';
+import { validarEsquema } from './lib/esquema.js';
 import { COLUMNAS, TABLAS_DATOS, aMysql, aPostgres } from './lib/transformar.js';
 
 // Orden de carga (padres primero); el borrado usa el orden inverso.
@@ -30,10 +31,8 @@ async function leerPg(pgc) {
   return datos;
 }
 
-async function supabaseAMysql({ pgUrl, mysqlUrl, log, warn }) {
-  const pgc = await abrirPg(pgUrl);
-  let datos;
-  try { datos = await leerPg(pgc); } finally { await pgc.end(); }
+async function supabaseAMysql({ pgc, my, log, warn }) {
+  const datos = await leerPg(pgc);
 
   const emailsRoles = new Set(datos.usuarios.map((u) => u.email.toLowerCase()));
   const sinRol = datos.auth.filter((a) => !emailsRoles.has(String(a.email).toLowerCase()));
@@ -45,7 +44,6 @@ async function supabaseAMysql({ pgUrl, mysqlUrl, log, warn }) {
   const filas = {};
   for (const t of ORDEN_CARGA) filas[t] = aMysql(t, datos[t], { authUsers: datos.auth });
 
-  const my = await abrirMysql(mysqlUrl);
   try {
     await my.beginTransaction();
     for (const t of ['sesiones', 'tokens_password', ...ORDEN_BORRADO]) await my.query(`DELETE FROM \`${t}\``);
@@ -61,8 +59,6 @@ async function supabaseAMysql({ pgUrl, mysqlUrl, log, warn }) {
   } catch (err) {
     await my.rollback().catch(() => {});
     throw err;
-  } finally {
-    await my.end();
   }
   return { advertencias: { sinRol: sinRol.length, sinLogin: sinLogin.length } };
 }
@@ -82,25 +78,35 @@ async function insertarPg(pgc, t, filas) {
   }
 }
 
-async function mysqlASupabase({ pgUrl, mysqlUrl, log, warn }) {
-  const my = await abrirMysql(mysqlUrl);
+// aprobaciones no se migra, pero en Postgres tiene ON DELETE CASCADE hacia equipos: borrar equipos la vaciaría.
+async function contarAprobaciones(pgc) {
+  const { rows: [r] } = await pgc.query("SELECT to_regclass('public.aprobaciones') AS t");
+  if (!r.t) return 0;
+  return Number((await pgc.query('SELECT count(*) AS n FROM public.aprobaciones')).rows[0].n);
+}
+
+async function mysqlASupabase({ pgc, my, log, warn }) {
   const crudo = {};
+  await my.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');
   try {
     for (const t of ORDEN_CARGA) {
       const [rows] = await my.query(`SELECT ${cols(t).join(', ')} FROM \`${t}\``);
       crudo[t] = rows;
     }
   } finally {
-    await my.end();
+    await my.query('ROLLBACK');
   }
   const filas = {};
   for (const t of ORDEN_CARGA) filas[t] = aPostgres(t, crudo[t]);
 
-  const pgc = await abrirPg(pgUrl);
   let actualizadas = 0;
   let sinAuth = [];
   try {
     await pgc.query('BEGIN');
+    const aprob = await contarAprobaciones(pgc);
+    if (aprob > 0) {
+      throw new Error(`La tabla aprobaciones tiene ${aprob} fila(s) y no se migra; borrar equipos las eliminaría en cascada. No se modificó nada.`);
+    }
     for (const t of ORDEN_BORRADO) await pgc.query(`DELETE FROM ${nombrePg(t)}`);
     for (const t of ORDEN_CARGA) {
       await insertarPg(pgc, t, filas[t]);
@@ -118,23 +124,41 @@ async function mysqlASupabase({ pgUrl, mysqlUrl, log, warn }) {
       );
       actualizadas += r.rowCount;
     }
+    if ((await contarAprobaciones(pgc)) !== aprob) throw new Error('aprobaciones cambió durante la migración; se revierte todo.');
     await pgc.query('COMMIT');
   } catch (err) {
     await pgc.query('ROLLBACK').catch(() => {});
     throw err;
-  } finally {
-    await pgc.end();
   }
   log(`auth.users: ${actualizadas} contraseña(s) actualizada(s)`);
   if (sinAuth.length) warn(`ADVERTENCIA: ${sinAuth.length} usuario(s) sin cuenta en auth.users (no podrán entrar a Supabase): ${sinAuth.join(', ')}`);
   return { advertencias: { sinAuth: sinAuth.length }, passwordsActualizadas: actualizadas };
 }
 
-export async function migrar({ desde, hacia, pgUrl, mysqlUrl, log = console.log, warn = console.warn }) {
+// `confirmar` es obligatorio: debe ser el nombre exacto de la base de destino (se lee de la conexión).
+export async function migrar({ desde, hacia, pgUrl, mysqlUrl, confirmar, log = console.log, warn = console.warn }) {
   if (!pgUrl || !mysqlUrl) throw new Error('Faltan las URLs: use --pg-url y --mysql-url (o PG_URL y MYSQL_URL).');
-  if (desde === 'supabase' && hacia === 'mysql') return supabaseAMysql({ pgUrl, mysqlUrl, log, warn });
-  if (desde === 'mysql' && hacia === 'supabase') return mysqlASupabase({ pgUrl, mysqlUrl, log, warn });
-  throw new Error('Use --desde=supabase --hacia=mysql  o  --desde=mysql --hacia=supabase.');
+  const ida = desde === 'supabase' && hacia === 'mysql';
+  const vuelta = desde === 'mysql' && hacia === 'supabase';
+  if (!ida && !vuelta) throw new Error('Use --desde=supabase --hacia=mysql  o  --desde=mysql --hacia=supabase.');
+  if (!confirmar) throw new Error('Falta --confirmar <nombre-de-la-base-de-destino> (obligatorio).');
+
+  const pgc = await abrirPg(pgUrl);
+  let my;
+  try {
+    my = await abrirMysql(mysqlUrl);
+    await validarEsquema(pgc, my);
+    const destino = ida
+      ? (await my.query('SELECT DATABASE() AS n'))[0][0].n
+      : (await pgc.query('SELECT current_database() AS n')).rows[0].n;
+    if (destino !== confirmar) {
+      throw new Error(`La base de destino es "${destino}" y no coincide con --confirmar "${confirmar}". No se modificó nada.`);
+    }
+    return await (ida ? supabaseAMysql : mysqlASupabase)({ pgc, my, log, warn });
+  } finally {
+    await my?.end().catch(() => {});
+    await pgc.end().catch(() => {});
+  }
 }
 
 export { TABLAS_DATOS };
@@ -143,7 +167,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const a = parsearArgs(process.argv.slice(2));
     const urls = resolverUrls({ pgUrl: a['pg-url'], mysqlUrl: a['mysql-url'] });
-    await migrar({ desde: a.desde, hacia: a.hacia, ...urls });
+    await migrar({ desde: a.desde, hacia: a.hacia, confirmar: a.confirmar, ...urls });
     console.log('Migración completada. Ejecute verificar.js para comparar ambos lados.');
   } catch (err) {
     console.error(`ERROR: ${err.message} (si el destino llegó a modificarse, la transacción se revirtió)`);

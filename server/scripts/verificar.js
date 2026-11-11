@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { abrirPg, abrirMysql, resolverUrls, parsearArgs } from './lib/conexion.js';
+import { validarEsquema } from './lib/esquema.js';
 import { COLUMNAS, aIsoMs, aFecha, canonico } from './lib/transformar.js';
 
 const TABLAS = ['usuarios', 'equipos', 'movimientos', 'prestamos', 'solicitudes_cambio', 'feedback_desarrollador', 'repuestos'];
@@ -43,6 +44,7 @@ export async function verificar({ pgUrl, mysqlUrl }) {
   const my = await abrirMysql(mysqlUrl);
   const resultados = [];
   try {
+    await validarEsquema(pgc, my);
     for (const t of TABLAS) {
       const p = hashTabla(t, (await pgc.query(consultaPg(t))).rows);
       const [rows] = await my.query(`SELECT ${nombres(t).join(', ')} FROM \`${t}\``);
@@ -50,8 +52,8 @@ export async function verificar({ pgUrl, mysqlUrl }) {
       resultados.push({ tabla: t, ok: p.hash === m.hash && p.cantidad === m.cantidad, pg: p.cantidad, mysql: m.cantidad, hashPg: p.hash, hashMysql: m.hash });
     }
   } finally {
-    await pgc.end();
-    await my.end();
+    await my.end().catch(() => {});
+    await pgc.end().catch(() => {});
   }
   return resultados;
 }
