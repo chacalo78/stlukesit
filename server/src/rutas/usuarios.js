@@ -8,6 +8,8 @@ import { ACCIONES, exige, puede, alcanceUsuarios } from '../auth/permisos.js';
 import { crearToken } from '../auth/tokens.js';
 import * as plantillas from '../mail/plantillas.js';
 import { ROLES, ROLE_LABELS } from '../util/roles.js';
+import { enTransaccion, movimiento } from '../util/transaccion.js';
+import { validar, envolver } from '../util/http.js';
 
 const COSTO = 12;
 const COLUMNAS = 'id, email, nombre, rol, sede, habilitado, created_at, (password_hash IS NOT NULL) AS tieneLogin';
@@ -32,37 +34,7 @@ const editarSchema = z.strictObject({ nombre: nombre.optional(), rol: rol.option
 const habilitadoSchema = z.strictObject({ habilitado: z.boolean() });
 const passwordSchema = z.strictObject({ passwordNueva: claveNueva });
 
-const validar = (schema) => (req, _res, next) => {
-  const r = schema.safeParse(req.body ?? {});
-  if (!r.success) {
-    const m = r.error.issues[0]?.message;
-    return next(errorHttp(400, m?.startsWith('La ') ? m : 'Datos inválidos'));
-  }
-  req.datos = r.data;
-  next();
-};
-const envolver = (fn) => (req, res, next) => fn(req, res).catch(next);
 const actor = (req) => req.usuario.nombre || 'Sistema';
-
-async function enTransaccion(db, fn) {
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    const r = await fn(conn);
-    await conn.commit();
-    return r;
-  } catch (e) {
-    await conn.rollback().catch(() => {});
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
-
-const movimiento = (conn, tipo, descripcion, usuario) => conn.query(
-  'INSERT INTO movimientos (id, equipo_id, tipo_movimiento, descripcion, usuario) VALUES (?, NULL, ?, ?, ?)',
-  [randomUUID(), tipo, descripcion, usuario],
-);
 
 // Dentro de la transacción: bloquea la fila del objetivo y vuelve a autorizar con el rol ACTUAL (evita TOCTOU).
 // `antesDeEscribir` es un punto de inyección solo para tests.
