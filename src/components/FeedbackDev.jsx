@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { feedback } from '../api'
 
 function FeedbackDev({ puedeGestionar }) {
   const [reportes, setReportes] = useState([])
@@ -12,8 +12,8 @@ function FeedbackDev({ puedeGestionar }) {
 
   async function cargarReportes() {
     setLoading(true)
-    const { data } = await supabase.from('feedback_desarrollador').select('*').order('created_at', { ascending: false })
-    setReportes(data || [])
+    const data = await feedback.listar().catch(() => [])
+    setReportes(data)
     setLoading(false)
   }
 
@@ -29,8 +29,10 @@ function FeedbackDev({ puedeGestionar }) {
 
   async function handleToggleEstado(reporte) {
     const nuevoEstado = reporte.estado === 'Nuevo' ? 'Resuelto' : 'Nuevo'
-    const { error } = await supabase.from('feedback_desarrollador').update({ estado: nuevoEstado }).eq('id', reporte.id)
-    if (!error) cargarReportes()
+    try {
+      await feedback.actualizar(reporte.id, { estado: nuevoEstado })
+      cargarReportes()
+    } catch { /* igual que antes: si falla, no se recarga */ }
   }
 
   const badgeTipo = (tipo) => {

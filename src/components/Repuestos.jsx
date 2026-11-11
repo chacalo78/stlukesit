@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { repuestos as apiRepuestos } from '../api'
 import ModalRepuesto from './ModalRepuesto'
 import { CATEGORIAS_REPUESTO, SEDES, leerBorradorRepuesto } from '../constants'
 
@@ -20,8 +20,8 @@ function Repuestos() {
 
   async function cargarRepuestos() {
     setLoading(true)
-    const { data } = await supabase.from('repuestos').select('*').order('categoria', { ascending: true })
-    setRepuestos(data || [])
+    const data = await apiRepuestos.listar().catch(() => [])
+    setRepuestos(data)
     setLoading(false)
   }
 
@@ -50,16 +50,13 @@ function Repuestos() {
       observaciones: form.observaciones || null,
     }
 
-    let error
-    if (repuestoEditando) {
-      const res = await supabase.from('repuestos').update(payload).eq('id', repuestoEditando.id)
-      error = res.error
-    } else {
-      const res = await supabase.from('repuestos').insert(payload)
-      error = res.error
+    try {
+      if (repuestoEditando) await apiRepuestos.actualizar(repuestoEditando.id, payload)
+      else await apiRepuestos.crear(payload)
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error')
+      return
     }
-
-    if (error) { showToast('Error: ' + error.message, 'error'); return }
     showToast(repuestoEditando ? 'Repuesto actualizado' : 'Repuesto creado correctamente')
     setModalOpen(false)
     setRepuestoEditando(null)
@@ -68,8 +65,12 @@ function Repuestos() {
 
   async function handleEliminar(repuesto) {
     if (!window.confirm(`¿Eliminar "${[repuesto.marca, repuesto.modelo].filter(Boolean).join(' ') || repuesto.categoria}" del inventario de repuestos?`)) return
-    const { error } = await supabase.from('repuestos').delete().eq('id', repuesto.id)
-    if (error) { showToast('Error al eliminar', 'error'); return }
+    try {
+      await apiRepuestos.eliminar(repuesto.id)
+    } catch {
+      showToast('Error al eliminar', 'error')
+      return
+    }
     showToast('Repuesto eliminado')
     cargarRepuestos()
   }

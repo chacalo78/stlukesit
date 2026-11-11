@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { exportar } from '../api'
 import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES } from '../constants'
 
 const COLUMNAS = [
@@ -54,8 +54,8 @@ function ExportarDB() {
 
   async function cargarEquipos() {
     setLoading(true)
-    const { data } = await supabase.from('equipos').select('*').order('numero_inventario', { ascending: true })
-    setEquipos(data || [])
+    const datos = await exportar.todo().catch(() => ({ equipos: [] }))
+    setEquipos(datos.equipos)
     setLoading(false)
   }
 

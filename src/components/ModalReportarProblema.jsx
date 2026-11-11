@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { feedback } from '../api'
 
 const SECCIONES = ['Dashboard', 'Equipos', 'Historial', 'Reportes', 'Préstamos', 'Usuarios', 'Login / Acceso', 'Otro']
 
@@ -38,16 +38,21 @@ function ModalReportarProblema({ nombre, email, onClose }) {
     }
     setLoading(true)
     setError('')
-    const { error } = await supabase.from('feedback_desarrollador').insert({
-      tipo: form.tipo,
-      seccion: form.seccion,
-      asunto: form.asunto.trim(),
-      descripcion: form.descripcion.trim(),
-      reportado_por: nombre || email,
-      reportado_por_email: email
-    })
+    let fallo = false
+    try {
+      await feedback.crear({
+        tipo: form.tipo,
+        seccion: form.seccion,
+        asunto: form.asunto.trim(),
+        descripcion: form.descripcion.trim(),
+        reportado_por: nombre || email,
+        reportado_por_email: email
+      })
+    } catch {
+      fallo = true
+    }
     setLoading(false)
-    if (error) {
+    if (fallo) {
       setError('No pudimos enviar el reporte. Probá de nuevo.')
     } else {
       setListo(true)

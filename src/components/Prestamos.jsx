@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { prestamos as apiPrestamos, equipos as apiEquipos } from '../api'
 import ModalPrestamo from './ModalPrestamo'
 import { SEDES, leerBorradorPrestamo } from '../constants'
 
@@ -34,11 +34,7 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
 
   async function cargarPrestamos() {
     setLoading(true)
-    const { data } = await supabase
-      .from('prestamos')
-      .select('*, equipos(id, numero_inventario, tipo, marca, modelo, ubicacion)')
-      .order('fecha_prestamo', { ascending: false })
-    let rows = data || []
+    let rows = await apiPrestamos.listar().catch(() => [])
     if (sedeScoped && currentUserSede) {
       rows = rows.filter(p => p.equipos?.ubicacion === currentUserSede)
     }
@@ -47,12 +43,11 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   }
 
   async function cargarEquiposDisponibles() {
-    let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva').order('numero_inventario', { ascending: true })
-    if (sedeScoped && currentUserSede) {
-      query = query.eq('ubicacion', currentUserSede)
-    }
-    const { data } = await query
-    setEquiposDisponibles((data || []).filter(e => e.estado !== 'Prestado' && e.estado !== 'De baja'))
+    const data = await apiEquipos.listar({
+      ordenado: true,
+      sede: sedeScoped && currentUserSede ? currentUserSede : undefined
+    }).catch(() => [])
+    setEquiposDisponibles(data.filter(e => e.estado !== 'Prestado' && e.estado !== 'De baja'))
   }
 
   function aplicarFiltros() {
@@ -100,42 +95,16 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
       registrado_por: currentUserNombre || 'Sistema'
     }
 
-    const { error } = await supabase.from('prestamos').insert(payload)
-    if (error) { showToast('Error: ' + error.message, 'error'); return }
-
-    await supabase.from('equipos').update({ estado: 'Prestado', usuario: payload.persona }).eq('id', form.equipo_id)
     const equipo = equiposDisponibles.find(e => e.id === form.equipo_id)
-    await supabase.from('movimientos').insert({
-      equipo_id: form.equipo_id,
-      tipo_movimiento: 'Préstamo',
-      descripcion: `Equipo prestado a ${payload.persona}${equipo ? ` (${equipo.numero_inventario})` : ''}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
-
-    if (payload.email_destinatario) {
-      try {
-        const { data: mailData, error: mailError } = await supabase.functions.invoke('notify-prestamo', {
-          body: {
-            email: payload.email_destinatario,
-            persona: payload.persona,
-            numeroInventario: equipo?.numero_inventario || '',
-            tipo: equipo?.tipo || '',
-            marca: equipo?.marca || '',
-            modelo: equipo?.modelo || '',
-            fechaDevolucion: payload.fecha_devolucion_estimada,
-          }
-        })
-        if (mailError || mailData?.warning) {
-          console.error('Error enviando mail de préstamo:', mailError, mailData)
-          const detalle = mailData?.detail || mailError?.message || 'motivo desconocido'
-          showToast(`Préstamo registrado, pero no se pudo enviar el mail (${detalle})`, 'error')
-        } else {
-          showToast('Préstamo registrado correctamente')
-        }
-      } catch (e) {
-        console.error('Error enviando mail de préstamo:', e)
-        showToast(`Préstamo registrado, pero no se pudo enviar el mail (${e?.message || 'motivo desconocido'})`, 'error')
-      }
+    let resultado
+    try {
+      resultado = await apiPrestamos.crear(payload, equipo, currentUserNombre || 'Sistema')
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error')
+      return
+    }
+    if (resultado.mailError) {
+      showToast(`Préstamo registrado, pero no se pudo enviar el mail (${resultado.mailError})`, 'error')
     } else {
       showToast('Préstamo registrado correctamente')
     }
@@ -147,48 +116,16 @@ function Prestamos({ puedeEditar, sedeScoped, currentUserSede, currentUserNombre
   async function handleDevolver(p) {
     if (!window.confirm(`¿Confirmar devolución del equipo "${p.equipos?.numero_inventario}" por parte de ${p.persona}?`)) return
     const observaciones = window.prompt('Observaciones de la devolución (opcional):', '') || null
-    const fechaDevolucionReal = new Date().toISOString()
 
-    const { error } = await supabase.from('prestamos').update({
-      fecha_devolucion_real: fechaDevolucionReal,
-      observaciones_devolucion: observaciones
-    }).eq('id', p.id)
-    if (error) { showToast('Error al registrar la devolución', 'error'); return }
-
-    await supabase.from('equipos').update({ estado: 'Activo', usuario: null }).eq('id', p.equipo_id)
-    await supabase.from('movimientos').insert({
-      equipo_id: p.equipo_id,
-      tipo_movimiento: 'Devolución',
-      descripcion: `Equipo devuelto por ${p.persona}${p.equipos ? ` (${p.equipos.numero_inventario})` : ''}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
-
-    if (p.email_destinatario) {
-      try {
-        const { data: mailData, error: mailError } = await supabase.functions.invoke('notify-prestamo', {
-          body: {
-            accion: 'devolucion',
-            email: p.email_destinatario,
-            persona: p.persona,
-            numeroInventario: p.equipos?.numero_inventario || '',
-            tipo: p.equipos?.tipo || '',
-            marca: p.equipos?.marca || '',
-            modelo: p.equipos?.modelo || '',
-            fechaDevolucion: fechaDevolucionReal,
-            observaciones: observaciones || '',
-          }
-        })
-        if (mailError || mailData?.warning) {
-          console.error('Error enviando mail de devolución:', mailError, mailData)
-          const detalle = mailData?.detail || mailError?.message || 'motivo desconocido'
-          showToast(`Devolución registrada, pero no se pudo enviar el mail (${detalle})`, 'error')
-        } else {
-          showToast('Devolución registrada')
-        }
-      } catch (e) {
-        console.error('Error enviando mail de devolución:', e)
-        showToast(`Devolución registrada, pero no se pudo enviar el mail (${e?.message || 'motivo desconocido'})`, 'error')
-      }
+    let resultado
+    try {
+      resultado = await apiPrestamos.devolver(p, observaciones, currentUserNombre || 'Sistema')
+    } catch {
+      showToast('Error al registrar la devolución', 'error')
+      return
+    }
+    if (resultado.mailError) {
+      showToast(`Devolución registrada, pero no se pudo enviar el mail (${resultado.mailError})`, 'error')
     } else {
       showToast('Devolución registrada')
     }
