@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { errorHttp } from '../errores.js';
 import { crearLimiteIntentos } from './limiteIntentos.js';
 import { requiereSesion, promesa, limpiarCookie } from './sesion.js';
+import { crearToken, consumirToken, MSG_ENLACE } from './tokens.js';
+import { enSegundoPlano, enviarSinEsperar } from '../mail/enviar.js';
+import * as plantillas from '../mail/plantillas.js';
 
 const COSTO = 12;
 const MAX_FALLOS_IP = 30;
@@ -14,13 +17,20 @@ const loginSchema = z.object({
   email: z.string().trim().toLowerCase().min(1).max(255),
   password: z.string().min(1).max(1000),
 });
+// bcrypt solo usa los primeros 72 bytes.
+const claveNueva = z.string()
+  .min(6, 'La nueva contraseña debe tener al menos 6 caracteres')
+  .refine((p) => Buffer.byteLength(p) <= 72, 'La nueva contraseña es demasiado larga');
 const passwordSchema = z.object({
   passwordActual: z.string().min(1).max(1000),
-  // bcrypt solo usa los primeros 72 bytes.
-  passwordNueva: z.string()
-    .min(6, 'La nueva contraseña debe tener al menos 6 caracteres')
-    .refine((p) => Buffer.byteLength(p) <= 72, 'La nueva contraseña es demasiado larga'),
+  passwordNueva: claveNueva,
 });
+const recuperarSchema = z.object({ email: z.string().trim().toLowerCase().min(1).max(255) });
+const tokenSchema = z.object({ token: z.string().min(1).max(200), password: claveNueva });
+
+const MAX_MAILS_EMAIL = 3;
+const MAX_PEDIDOS_IP = 20;
+const HORA_MS = 60 * 60 * 1000;
 
 function validar(schema, body) {
   const r = schema.safeParse(body);
@@ -35,6 +45,9 @@ export function crearRutasAuth({ ahora } = {}) {
   const limite = crearLimiteIntentos({ ahora });
   const limiteIp = crearLimiteIntentos({ ahora, maxFallos: MAX_FALLOS_IP });
   const limitePwd = crearLimiteIntentos({ ahora });
+  // R20: /recuperar -> 3 mails por email y 20 pedidos por IP, por hora.
+  const limiteRecEmail = crearLimiteIntentos({ ahora, maxFallos: MAX_MAILS_EMAIL, ventanaMs: HORA_MS });
+  const limiteRecIp = crearLimiteIntentos({ ahora, maxFallos: MAX_PEDIDOS_IP, ventanaMs: HORA_MS });
   const MSG_429 = 'Demasiados intentos. Probá de nuevo en unos minutos.';
   const r = Router();
 
@@ -102,7 +115,45 @@ export function crearRutasAuth({ ahora } = {}) {
     await promesa((cb) => req.session.regenerate(cb));
     req.session.usuarioId = req.usuario.id;
     await promesa((cb) => req.session.save(cb));
-    // TODO(Tarea 8): aquí se enviará el mail "contraseña cambiada" (hook: app.locals.mailer).
+    enviarSinEsperar(req.app.locals.mailer, { para: req.usuario.email, ...plantillas.passwordCambiada(plantillas.MOTIVO_CAMBIO_PROPIO) });
+    res.json({ ok: true });
+  }));
+
+  // Siempre 200 { ok: true }: no revela si el email existe. Todo el trabajo (consulta, token, mail) va en segundo
+  // plano para que el tiempo de respuesta sea el mismo exista o no la cuenta.
+  r.post('/recuperar', envolver(async (req, res) => {
+    const p = recuperarSchema.safeParse(req.body);
+    res.json({ ok: true });
+    if (!p.success) return;
+    const { email } = p.data;
+    const claveEmail = `rec|${email}`;
+    const claveIp = `rec-ip|${req.ip}`;
+    const excedido = limiteRecEmail.bloqueado(claveEmail) || limiteRecIp.bloqueado(claveIp);
+    limiteRecEmail.registrarFallo(claveEmail); // cuenta pedidos, existan o no
+    limiteRecIp.registrarFallo(claveIp);
+    if (excedido) return;
+    const { db, mailer, config } = req.app.locals;
+    enSegundoPlano(async () => {
+      const [filas] = await db.query('SELECT id, email FROM usuarios WHERE LOWER(email) = ? AND habilitado = 1', [email]);
+      const u = filas[0];
+      if (!u) return;
+      const token = await crearToken(db, u.id, 'recuperacion');
+      const link = `${config.appUrl}/?token=${encodeURIComponent(token)}&tipo=recuperacion`;
+      await mailer.enviar({ para: u.email, ...plantillas.recuperacion(link) });
+    });
+  }));
+
+  // Fija la contraseña con un token (recuperación o invitación). No inicia sesión.
+  r.post('/token', envolver(async (req, res) => {
+    const { token, password } = validar(tokenSchema, req.body);
+    const { db, mailer } = req.app.locals;
+    const { usuarioId } = await consumirToken(db, token);
+    const [filas] = await db.query('SELECT email, habilitado FROM usuarios WHERE id = ?', [usuarioId]);
+    const u = filas[0];
+    if (!u || !u.habilitado) throw errorHttp(400, MSG_ENLACE);
+    const hash = await bcrypt.hash(password, COSTO);
+    await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, usuarioId]);
+    enviarSinEsperar(mailer, { para: u.email, ...plantillas.passwordCambiada(plantillas.MOTIVO_CAMBIO_PROPIO) });
     res.json({ ok: true });
   }));
 

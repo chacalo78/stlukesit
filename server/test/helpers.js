@@ -63,3 +63,17 @@ export async function iniciarSesionComo(app, email, password, origin = 'https://
   const sid = (r.headers['set-cookie'] || []).find((c) => c.startsWith('sid='));
   return sid.split(';')[0];
 }
+
+// Mailer falso: guarda los mails en `enviados`. `fallarCon(error)` hace que el próximo envío (y los siguientes) rechacen.
+export function crearMailerFalso() {
+  const m = {
+    enviados: [],
+    error: null,
+    fallarCon(e = new Error('SMTP caído')) { m.error = e; },
+    async enviar(msg) {
+      if (m.error) throw m.error;
+      m.enviados.push(msg);
+    },
+  };
+  return m;
+}
