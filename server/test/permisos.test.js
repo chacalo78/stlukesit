@@ -100,14 +100,18 @@ describe('alcances', () => {
     expect(alcanceSolicitudes(u('director'))).toBe('ninguna');
     expect(alcanceSolicitudes(u('root'))).toBe('ninguna');
     expect(alcanceSolicitudes(null)).toBe('ninguna');
+    expect(alcanceSolicitudes(undefined)).toBe('ninguna');
+    expect(alcanceSolicitudes(u('Coordinador'))).toBe('ninguna');
   });
   it('alcanceUsuarios', () => {
     expect(alcanceUsuarios(u('super_admin'))).toBe('todos');
     expect(alcanceUsuarios(u('admin'))).toBe('todos');
     expect(alcanceUsuarios(u('coordinador'))).toBe('propio');
     expect(alcanceUsuarios(u('director'))).toBe('propio');
-    expect(alcanceUsuarios(u('root'))).toBe('propio');
-    expect(alcanceUsuarios(undefined)).toBe('propio');
+    expect(alcanceUsuarios(u('root'))).toBe('ninguno');
+    expect(alcanceUsuarios(u('Admin'))).toBe('ninguno');
+    expect(alcanceUsuarios(undefined)).toBe('ninguno');
+    expect(alcanceUsuarios(null)).toBe('ninguno');
   });
 });
 
@@ -175,21 +179,71 @@ describe('usuarios: uno mismo (id igual)', () => {
 describe('usuarios: cambio de rol (rolNuevo) sobre otro usuario', () => {
   // [actor, rolActualObjetivo, rolNuevo, esperado]
   const tabla = [
-    ['super_admin', 'coordinador', 'admin', T],
-    ['super_admin', 'director', 'super_admin', T],
-    ['super_admin', 'admin', 'director', T],
+    // 4 actores x 4 roles actuales del objetivo x 4 rolNuevo (actor id 1, objetivo id 2)
+    ['super_admin', 'super_admin', 'super_admin', T],
+    ['super_admin', 'super_admin', 'admin', T],
     ['super_admin', 'super_admin', 'coordinador', T],
+    ['super_admin', 'super_admin', 'director', T],
+    ['super_admin', 'admin', 'super_admin', T],
+    ['super_admin', 'admin', 'admin', T],
+    ['super_admin', 'admin', 'coordinador', T],
+    ['super_admin', 'admin', 'director', T],
+    ['super_admin', 'coordinador', 'super_admin', T],
+    ['super_admin', 'coordinador', 'admin', T],
+    ['super_admin', 'coordinador', 'coordinador', T],
     ['super_admin', 'coordinador', 'director', T],
-    ['admin', 'coordinador', 'director', T],
-    ['admin', 'director', 'coordinador', T],
-    ['admin', 'coordinador', 'admin', F], // escalada
-    ['admin', 'director', 'super_admin', F], // escalada
-    ['admin', 'admin', 'coordinador', F], // degradar admin
+    ['super_admin', 'director', 'super_admin', T],
+    ['super_admin', 'director', 'admin', T],
+    ['super_admin', 'director', 'coordinador', T],
+    ['super_admin', 'director', 'director', T],
+    ['admin', 'super_admin', 'super_admin', F],
+    ['admin', 'super_admin', 'admin', F],
+    ['admin', 'super_admin', 'coordinador', F],
     ['admin', 'super_admin', 'director', F],
-    ['coordinador', 'director', 'coordinador', F],
-    ['director', 'coordinador', 'director', F],
+    ['admin', 'admin', 'super_admin', F],
+    ['admin', 'admin', 'admin', F],
+    ['admin', 'admin', 'coordinador', F],
+    ['admin', 'admin', 'director', F],
+    ['admin', 'coordinador', 'super_admin', F],
+    ['admin', 'coordinador', 'admin', F],
+    ['admin', 'coordinador', 'coordinador', T],
+    ['admin', 'coordinador', 'director', T],
+    ['admin', 'director', 'super_admin', F],
+    ['admin', 'director', 'admin', F],
+    ['admin', 'director', 'coordinador', T],
+    ['admin', 'director', 'director', T],
+    ['coordinador', 'super_admin', 'super_admin', F],
+    ['coordinador', 'super_admin', 'admin', F],
+    ['coordinador', 'super_admin', 'coordinador', F],
+    ['coordinador', 'super_admin', 'director', F],
+    ['coordinador', 'admin', 'super_admin', F],
+    ['coordinador', 'admin', 'admin', F],
+    ['coordinador', 'admin', 'coordinador', F],
+    ['coordinador', 'admin', 'director', F],
+    ['coordinador', 'coordinador', 'super_admin', F],
     ['coordinador', 'coordinador', 'admin', F],
+    ['coordinador', 'coordinador', 'coordinador', F],
+    ['coordinador', 'coordinador', 'director', F],
+    ['coordinador', 'director', 'super_admin', F],
+    ['coordinador', 'director', 'admin', F],
+    ['coordinador', 'director', 'coordinador', F],
+    ['coordinador', 'director', 'director', F],
+    ['director', 'super_admin', 'super_admin', F],
+    ['director', 'super_admin', 'admin', F],
+    ['director', 'super_admin', 'coordinador', F],
+    ['director', 'super_admin', 'director', F],
+    ['director', 'admin', 'super_admin', F],
+    ['director', 'admin', 'admin', F],
+    ['director', 'admin', 'coordinador', F],
+    ['director', 'admin', 'director', F],
+    ['director', 'coordinador', 'super_admin', F],
+    ['director', 'coordinador', 'admin', F],
+    ['director', 'coordinador', 'coordinador', F],
+    ['director', 'coordinador', 'director', F],
     ['director', 'director', 'super_admin', F],
+    ['director', 'director', 'admin', F],
+    ['director', 'director', 'coordinador', F],
+    ['director', 'director', 'director', F],
   ];
   for (const [actor, actual, nuevo, esp] of tabla) {
     it(`${actor}: ${actual} -> ${nuevo} = ${esp}`, () => {
@@ -199,6 +253,51 @@ describe('usuarios: cambio de rol (rolNuevo) sobre otro usuario', () => {
   it('rolNuevo desconocido deniega', () => {
     expect(puede(u('super_admin'), ACCIONES.USUARIOS_GESTIONAR, { id: 2, rol: 'director', rolNuevo: 'root' })).toBe(false);
     expect(puede(u('super_admin'), ACCIONES.USUARIOS_GESTIONAR, { id: 2, rol: 'director', rolNuevo: 'Admin' })).toBe(false);
+  });
+});
+
+describe('usuarios: cambio de rol sobre si mismo (4 actores x 4 rolNuevo)', () => {
+  const tabla = [
+    ['super_admin', 'super_admin', T], ['super_admin', 'admin', F], ['super_admin', 'coordinador', F], ['super_admin', 'director', F],
+    ['admin', 'super_admin', F], ['admin', 'admin', F], ['admin', 'coordinador', F], ['admin', 'director', F],
+    ['coordinador', 'super_admin', F], ['coordinador', 'admin', F], ['coordinador', 'coordinador', F], ['coordinador', 'director', F],
+    ['director', 'super_admin', F], ['director', 'admin', F], ['director', 'coordinador', F], ['director', 'director', F],
+  ];
+  for (const [rol, nuevo, esp] of tabla) {
+    it(`${rol} se cambia a ${nuevo} = ${esp}`, () => {
+      expect(puede(u(rol), ACCIONES.USUARIOS_GESTIONAR, { id: 1, rol, rolNuevo: nuevo })).toBe(esp);
+    });
+  }
+});
+
+describe('usuarios: ids ausentes (deny by default)', () => {
+  const sinIdActor = (rol) => ({ email: 'yo@x.cl', rol });
+  it('actor sin id: GESTIONAR/BORRAR/INHABILITAR denegados', () => {
+    for (const rol of ROLES) {
+      for (const a of ['USUARIOS_GESTIONAR', 'USUARIOS_BORRAR', 'USUARIOS_INHABILITAR']) {
+        expect(puede(sinIdActor(rol), ACCIONES[a], { id: 2, rol: 'director' })).toBe(false);
+        expect(puede({ ...sinIdActor(rol), id: null }, ACCIONES[a], { id: 2, rol: 'director' })).toBe(false);
+      }
+    }
+  });
+  it('super_admin sin id sobre objetivo sin id: no se borra / cambia rol / inhabilita', () => {
+    const a = sinIdActor('super_admin');
+    expect(puede(a, ACCIONES.USUARIOS_BORRAR, { rol: 'super_admin' })).toBe(false);
+    expect(puede(a, ACCIONES.USUARIOS_GESTIONAR, { rol: 'super_admin', rolNuevo: 'director' })).toBe(false);
+    expect(puede(a, ACCIONES.USUARIOS_INHABILITAR, { rol: 'director' })).toBe(false);
+  });
+  it('objetivo sin id: BORRAR e INHABILITAR denegados', () => {
+    for (const actor of ['super_admin', 'admin']) {
+      expect(puede(u(actor), ACCIONES.USUARIOS_BORRAR, { rol: 'director' })).toBe(false);
+      expect(puede(u(actor), ACCIONES.USUARIOS_INHABILITAR, { rol: 'director' })).toBe(false);
+      expect(puede(u(actor), ACCIONES.USUARIOS_BORRAR, { id: null, rol: 'coordinador' })).toBe(false);
+      expect(puede(u(actor), ACCIONES.USUARIOS_INHABILITAR, { id: undefined, rol: 'coordinador' })).toBe(false);
+    }
+  });
+  it('objetivo sin id con rolNuevo: GESTIONAR denegado; crear sin rolNuevo sigue permitido', () => {
+    expect(puede(u('super_admin'), ACCIONES.USUARIOS_GESTIONAR, { rol: 'director', rolNuevo: 'coordinador' })).toBe(false);
+    expect(puede(u('admin'), ACCIONES.USUARIOS_GESTIONAR, { rol: 'director', rolNuevo: 'coordinador' })).toBe(false);
+    expect(puede(u('admin'), ACCIONES.USUARIOS_GESTIONAR, { rol: 'director' })).toBe(true);
   });
 });
 

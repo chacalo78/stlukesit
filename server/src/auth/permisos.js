@@ -65,12 +65,18 @@ function puedeSobreRol(actor, objetivo) {
   return false;
 }
 
+const sinId = (id) => id === undefined || id === null;
+
 function gestionar(usuario, recurso) {
+  // Deny by default: sin id del actor no se puede verificar "no actuar sobre uno mismo".
+  if (sinId(usuario.id)) return false;
   if (!recurso || !esRol(recurso.rol)) return false;
   if (!puedeSobreRol(usuario.rol, recurso.rol)) return false;
   const { rolNuevo } = recurso;
   if (rolNuevo !== undefined && rolNuevo !== null) {
     if (!esRol(rolNuevo) || !puedeSobreRol(usuario.rol, rolNuevo)) return false;
+    // Cambio de rol: el objetivo debe estar identificado (para poder detectar el propio).
+    if (sinId(recurso.id)) return false;
     // Nadie cambia su propio rol.
     if (mismo(usuario.id, recurso.id) && rolNuevo !== recurso.rol) return false;
   }
@@ -100,11 +106,11 @@ export function puede(usuario, accion, recurso) {
     case ACCIONES.USUARIOS_GESTIONAR:
       return gestionar(usuario, recurso);
     case ACCIONES.USUARIOS_BORRAR:
-      if (!recurso || mismo(usuario.id, recurso.id)) return false;
+      if (!recurso || sinId(recurso.id) || mismo(usuario.id, recurso.id)) return false;
       return gestionar(usuario, { id: recurso.id, rol: recurso.rol });
     case ACCIONES.USUARIOS_INHABILITAR:
       // Nadie inhabilita a un admin/super_admin, ni a si mismo.
-      if (!recurso || mismo(usuario.id, recurso.id) || esAdminOSuper(recurso.rol)) return false;
+      if (!recurso || sinId(recurso.id) || mismo(usuario.id, recurso.id) || esAdminOSuper(recurso.rol)) return false;
       return gestionar(usuario, { id: recurso.id, rol: recurso.rol });
     default:
       return false;
@@ -115,11 +121,14 @@ export function alcanceSolicitudes(usuario) {
   if (!usuario) return 'ninguna';
   if (usuario.rol === SA || usuario.rol === AD) return 'todas';
   if (usuario.rol === CO) return 'propias';
-  return 'ninguna';
+  return 'ninguna'; // director, rol desconocido o sin usuario
 }
 
 export function alcanceUsuarios(usuario) {
-  return usuario && (usuario.rol === SA || usuario.rol === AD) ? 'todos' : 'propio';
+  if (!usuario) return 'ninguno';
+  if (usuario.rol === SA || usuario.rol === AD) return 'todos';
+  if (usuario.rol === CO || usuario.rol === DI) return 'propio';
+  return 'ninguno';
 }
 
 export function exige(accion, obtenerRecurso) {
