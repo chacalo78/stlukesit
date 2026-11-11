@@ -4,7 +4,10 @@ export const NOMBRE_COOKIE = 'sid';
 export const MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
 export function opcionesCookie(config) {
-  return { httpOnly: true, secure: true, sameSite: 'lax', domain: config.cookieDomain, path: '/' };
+  // Host-only por defecto: `domain` solo si config.cookieDomain tiene valor.
+  const o = { httpOnly: true, secure: true, sameSite: 'lax', path: '/' };
+  if (config.cookieDomain) o.domain = config.cookieDomain;
+  return o;
 }
 
 export const promesa = (fn) => new Promise((resolve, reject) => fn((err) => (err ? reject(err) : resolve())));

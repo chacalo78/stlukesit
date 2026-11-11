@@ -6,6 +6,7 @@ import { crearLimiteIntentos } from './limiteIntentos.js';
 import { requiereSesion, promesa, limpiarCookie } from './sesion.js';
 
 const COSTO = 12;
+const MAX_FALLOS_IP = 30;
 // Hash de relleno: se compara cuando el usuario no existe o no tiene hash, para igualar tiempos.
 const HASH_DUMMY = bcrypt.hashSync('relleno-no-es-una-clave-real', COSTO);
 
@@ -32,12 +33,16 @@ const envolver = (fn) => (req, res, next) => fn(req, res).catch(next);
 
 export function crearRutasAuth({ ahora } = {}) {
   const limite = crearLimiteIntentos({ ahora });
+  const limiteIp = crearLimiteIntentos({ ahora, maxFallos: MAX_FALLOS_IP });
+  const limitePwd = crearLimiteIntentos({ ahora });
+  const MSG_429 = 'Demasiados intentos. Probá de nuevo en unos minutos.';
   const r = Router();
 
   r.post('/login', envolver(async (req, res) => {
     const { email, password } = validar(loginSchema, req.body);
     const clave = `${req.ip}|${email}`;
-    if (limite.bloqueado(clave)) throw errorHttp(429, 'Demasiados intentos. Probá de nuevo en unos minutos.');
+    const claveIp = `ip|${req.ip}`;
+    if (limite.bloqueado(clave) || limiteIp.bloqueado(claveIp)) throw errorHttp(429, MSG_429);
 
     const { db } = req.app.locals;
     const [filas] = await db.query(
@@ -48,10 +53,21 @@ export function crearRutasAuth({ ahora } = {}) {
     const ok = await bcrypt.compare(password, u?.password_hash || HASH_DUMMY);
     if (!u || !u.password_hash || !ok) {
       limite.registrarFallo(clave);
+      limiteIp.registrarFallo(claveIp);
       throw errorHttp(401, 'Email o contraseña incorrectos');
     }
     limite.reiniciar(clave);
     if (!u.habilitado) throw errorHttp(403, 'Tu usuario está inhabilitado');
+
+    // Hashes migrados (costo 10) -> costo 12, para que todas las cuentas tarden igual que el hash de relleno.
+    if (bcrypt.getRounds(u.password_hash) < COSTO) {
+      try {
+        const nuevo = await bcrypt.hash(password, COSTO);
+        await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [nuevo, u.id]);
+      } catch {
+        console.warn('No se pudo actualizar el costo del hash de un usuario');
+      }
+    }
 
     await promesa((cb) => req.session.regenerate(cb)); // anti session-fixation
     req.session.usuarioId = u.id;
@@ -69,11 +85,17 @@ export function crearRutasAuth({ ahora } = {}) {
 
   r.post('/password', requiereSesion, envolver(async (req, res) => {
     const { passwordActual, passwordNueva } = validar(passwordSchema, req.body);
+    const clavePwd = `pwd|${req.usuario.id}`;
+    if (limitePwd.bloqueado(clavePwd)) throw errorHttp(429, MSG_429);
     const { db } = req.app.locals;
     const [filas] = await db.query('SELECT password_hash FROM usuarios WHERE id = ?', [req.usuario.id]);
     const hash = filas[0]?.password_hash;
     const ok = await bcrypt.compare(passwordActual, hash || HASH_DUMMY);
-    if (!hash || !ok) throw errorHttp(400, 'La contraseña actual es incorrecta');
+    if (!hash || !ok) {
+      limitePwd.registrarFallo(clavePwd);
+      throw errorHttp(400, 'La contraseña actual es incorrecta');
+    }
+    limitePwd.reiniciar(clavePwd);
 
     const nuevo = await bcrypt.hash(passwordNueva, COSTO);
     await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [nuevo, req.usuario.id]);

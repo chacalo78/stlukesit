@@ -4,7 +4,7 @@ export const MAX_FALLOS = 5;
 export const VENTANA_MS = 15 * 60 * 1000;
 const LIMITE_CLAVES = 5000;
 
-export function crearLimiteIntentos({ ahora = () => Date.now(), maxFallos = MAX_FALLOS, ventanaMs = VENTANA_MS } = {}) {
+export function crearLimiteIntentos({ ahora = () => Date.now(), maxFallos = MAX_FALLOS, ventanaMs = VENTANA_MS, maxClaves = LIMITE_CLAVES } = {}) {
   const fallos = new Map(); // clave -> [timestamps]
 
   function vigentes(clave) {
@@ -22,8 +22,11 @@ export function crearLimiteIntentos({ ahora = () => Date.now(), maxFallos = MAX_
   return {
     bloqueado: (clave) => vigentes(clave).length >= maxFallos,
     registrarFallo(clave) {
-      // El email lo controla el cliente: acotar la memoria.
-      if (fallos.size >= LIMITE_CLAVES) purgar();
+      // El email lo controla el cliente: tope duro de memoria (purgar vencidas; si sigue lleno, evictar la más vieja).
+      if (!fallos.has(clave) && fallos.size >= maxClaves) {
+        purgar();
+        if (fallos.size >= maxClaves) fallos.delete(fallos.keys().next().value);
+      }
       const lista = vigentes(clave);
       lista.push(ahora());
       fallos.set(clave, lista);

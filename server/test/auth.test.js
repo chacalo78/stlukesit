@@ -31,6 +31,8 @@ beforeAll(async () => {
   await usuario('u-2', 'dis@colegio.test', await bcrypt.hash('clave-dis', 4), { habilitado: 0 });
   await usuario('u-3', 'sinclave@colegio.test', null);
   await usuario('u-4', 'bob@colegio.test', await bcrypt.hash('clave-bob', 4));
+  await usuario('u-9', 'mig@colegio.test', await bcrypt.hash('clave-mig', 10));
+  await usuario('u-10', 'mig2@colegio.test', await bcrypt.hash('clave-mig2', 10));
   await usuario('u-5', 'eve@colegio.test', await bcrypt.hash('clave-eve', 4));
 });
 afterAll(() => limpiar(db));
@@ -46,7 +48,7 @@ describe('login', () => {
     expect(c).toMatch(/Secure/i);
     expect(c).toMatch(/SameSite=Lax/i);
     expect(c).toMatch(/Path=\//i);
-    expect(c).not.toMatch(/Domain=/i);
+    expect(c).not.toMatch(/Domain=/i); // host-only si COOKIE_DOMAIN no está definido
     expect(JSON.stringify(r.body)).not.toMatch(/hash|\$2/);
   });
   it('email insensible a mayúsculas y espacios', async () => {
@@ -78,15 +80,39 @@ describe('login', () => {
     expect((await post('/api/auth/login', {})).status).toBe(400);
     expect((await post('/api/auth/login', { email: 5, password: 'x' })).status).toBe(400);
   });
-  it('session fixation: la cookie cambia tras loguear', async () => {
-    const previa = await request(app).post('/api/auth/login').set('Origin', OK).set('X-Forwarded-Proto', 'https')
-      .set('Cookie', 'sid=s%3Afijada.firmaFalsa').send({ email: 'ana@colegio.test', password: 'vieja-clave' });
-    const c = previa.headers['set-cookie'].find((x) => x.startsWith('sid='));
-    expect(c).not.toContain('fijada');
-    // y dos logins consecutivos dan ids distintos
-    const c1 = await iniciarSesionComo(app, 'ana@colegio.test', 'vieja-clave');
-    const c2 = await iniciarSesionComo(app, 'ana@colegio.test', 'vieja-clave');
-    expect(c1).not.toBe(c2);
+  it('session fixation: la sesión previa al login ya no autentica y el sid cambia', async () => {
+    // Sesión previa: se siembra en el store (equivale a un atacante que fijó un sid).
+    const sidViejo = 'sidFijadoPorElAtacante0123456789abcdef';
+    await new Promise((res, rej) => app.locals.sessionStore.set(sidViejo, {
+      cookie: { originalMaxAge: 1000000, expires: new Date(Date.now() + 1e6).toISOString(), secure: true, httpOnly: true, path: '/' },
+      basura: 1,
+    }, (e) => (e ? rej(e) : res())));
+    const firma = (await import('cookie-signature')).sign(sidViejo, 'secreto-de-test');
+    const viejo = `sid=${encodeURIComponent('s:' + firma)}`;
+    const r = await request(app).post('/api/auth/login').set('Origin', OK).set('X-Forwarded-Proto', 'https')
+      .set('Cookie', viejo).send({ email: 'ana@colegio.test', password: 'vieja-clave' });
+    expect(r.status).toBe(200);
+    const nuevo = r.headers['set-cookie'].find((x) => x.startsWith('sid=')).split(';')[0];
+    expect(nuevo).not.toBe(viejo);
+    expect((await get('/api/auth/sesion', nuevo)).status).toBe(200);
+    expect((await get('/api/auth/sesion', viejo)).status).toBe(401);
+    const [f] = await db.query('SELECT COUNT(*) n FROM sesiones WHERE session_id = ?', [sidViejo]);
+    expect(f[0].n).toBe(0);
+  });
+  it('hash migrado de costo 10 se reescribe a costo 12 tras login correcto; uno de costo 12 no se toca', async () => {
+    const antes = (await db.query("SELECT password_hash h FROM usuarios WHERE id='u-9'"))[0][0].h;
+    expect(bcrypt.getRounds(antes)).toBe(10);
+    expect((await login('mig@colegio.test', 'clave-mig')).status).toBe(200);
+    const despues = (await db.query("SELECT password_hash h FROM usuarios WHERE id='u-9'"))[0][0].h;
+    expect(bcrypt.getRounds(despues)).toBe(12);
+    expect(await bcrypt.compare('clave-mig', despues)).toBe(true);
+    expect((await login('mig@colegio.test', 'clave-mig')).status).toBe(200);
+    expect((await db.query("SELECT password_hash h FROM usuarios WHERE id='u-9'"))[0][0].h).toBe(despues);
+  });
+  it('login con clave mala no reescribe el hash', async () => {
+    await login('mig2@colegio.test', 'mala');
+    const h = (await db.query("SELECT password_hash h FROM usuarios WHERE id='u-10'"))[0][0].h;
+    expect(bcrypt.getRounds(h)).toBe(10);
   });
 });
 
@@ -184,6 +210,29 @@ describe('rate limit de login', () => {
   });
 });
 
+describe('límite por IP', () => {
+  it('30 fallos desde la IP (emails distintos) -> 429 aun con clave correcta; el éxito no reinicia el contador de IP; expira', async () => {
+    for (let i = 0; i < 29; i++) expect((await login(`x${i}@colegio.test`, 'mala')).status).toBe(401);
+    expect((await login('ana@colegio.test', 'vieja-clave')).status).toBe(200); // éxito: reinicia solo ip|email
+    expect((await login('y@colegio.test', 'mala')).status).toBe(401); // fallo 30
+    const r = await login('ana@colegio.test', 'vieja-clave');
+    expect(r.status).toBe(429);
+    expect(r.body).toEqual({ error: 'Demasiados intentos. Probá de nuevo en unos minutos.' });
+    reloj.t += 16 * 60 * 1000;
+    expect((await login('ana@colegio.test', 'vieja-clave')).status).toBe(200);
+  }, 60000);
+});
+
+describe('limiteIntentos: tope duro de claves', () => {
+  it('evicta la más vieja al llenarse', async () => {
+    const { crearLimiteIntentos } = await import('../src/auth/limiteIntentos.js');
+    const l = crearLimiteIntentos({ maxClaves: 3, maxFallos: 1 });
+    ['a', 'b', 'c', 'd'].forEach((k) => l.registrarFallo(k));
+    expect(l.bloqueado('a')).toBe(false);
+    expect(l.bloqueado('b') && l.bloqueado('c') && l.bloqueado('d')).toBe(true);
+  });
+});
+
 describe('cambiar contraseña', () => {
   const cambiar = (cookie, body) => request(app).post('/api/auth/password').set('Origin', OK).set('X-Forwarded-Proto', 'https').set('Cookie', cookie).send(body);
   it('sin sesión -> 401', async () => {
@@ -195,6 +244,18 @@ describe('cambiar contraseña', () => {
     expect(r.status).toBe(400);
     expect(r.body).toEqual({ error: 'La contraseña actual es incorrecta' });
   });
+  it('5 contraseñas actuales incorrectas -> 429; el éxito reinicia el contador', async () => {
+    await usuario('u-11', 'lim@colegio.test', await bcrypt.hash('clave-lim', 4));
+    const cookie = await iniciarSesionComo(app, 'lim@colegio.test', 'clave-lim');
+    for (let i = 0; i < 4; i++) expect((await cambiar(cookie, { passwordActual: 'mala', passwordNueva: 'nueva-clave' })).status).toBe(400);
+    const ok = await cambiar(cookie, { passwordActual: 'clave-lim', passwordNueva: 'clave-lim' });
+    expect(ok.status).toBe(200);
+    const c2 = ok.headers['set-cookie'].find((x) => x.startsWith('sid=')).split(';')[0];
+    for (let i = 0; i < 5; i++) expect((await cambiar(c2, { passwordActual: 'mala', passwordNueva: 'nueva-clave' })).status).toBe(400);
+    const r = await cambiar(c2, { passwordActual: 'clave-lim', passwordNueva: 'otra-nueva' });
+    expect(r.status).toBe(429);
+    expect(r.body).toEqual({ error: 'Demasiados intentos. Probá de nuevo en unos minutos.' });
+  }, 30000);
   it('nueva demasiado corta -> 400 con el mensaje del frontend', async () => {
     const cookie = await iniciarSesionComo(app, 'eve@colegio.test', 'clave-eve');
     const r = await cambiar(cookie, { passwordActual: 'clave-eve', passwordNueva: '12345' });
