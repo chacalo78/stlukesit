@@ -4,6 +4,7 @@ import { crearRutasAuth } from '../auth/rutas.js';
 import { crearRutasUsuarios } from './usuarios.js';
 import { crearRutasEquipos } from './equipos.js';
 import { crearRutasMovimientos } from './movimientos.js';
+import { crearRutasSolicitudes } from './solicitudes.js';
 import { NOMBRE_COOKIE, MAX_AGE_MS, opcionesCookie } from '../auth/sesion.js';
 
 const MySQLStore = MySQLStoreFactory(session);
@@ -35,4 +36,5 @@ export function montarRutas(app, { db, config }) {
   app.use('/api/usuarios', crearRutasUsuarios());
   app.use('/api/equipos', crearRutasEquipos());
   app.use('/api/movimientos', crearRutasMovimientos());
+  app.use('/api/solicitudes', crearRutasSolicitudes());
 }

@@ -1,45 +1,19 @@
 import { Router } from 'express';
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { errorHttp } from '../errores.js';
 import { requiereSesion } from '../auth/sesion.js';
 import { ACCIONES, exige } from '../auth/permisos.js';
 import { enTransaccion, movimiento } from '../util/transaccion.js';
 import { validar, envolver } from '../util/http.js';
-import { ESTADOS_ESCRITURA, identificarEquipo, camposModificados } from '../util/equipos.js';
+import { identificarEquipo } from '../util/equipos.js';
+import { crearSchema, editarSchema, enOrden, bloquearEquipo, aplicarAlta, aplicarModificacion, aplicarBaja } from '../util/equiposEscritura.js';
 
-const texto = z.string().max(255).nullable();
-const fecha = z.string().regex(/^\d{4}-\d\d-\d\d$/, 'La fecha debe tener el formato AAAA-MM-DD')
-  .refine((s) => { const t = new Date(`${s}T00:00:00Z`); return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(s); }, 'La fecha no es válida').nullable();
-const estado = z.enum(ESTADOS_ESCRITURA, { error: `El estado debe ser uno de: ${ESTADOS_ESCRITURA.join(', ')}` });
-
-// Exactamente las columnas que escribe el formulario (Equipos.jsx handleSave).
-const CAMPOS = {
-  numero_inventario: texto, id_red: texto, marca: texto, modelo: texto, numero_serie: texto,
-  procesador: texto, ram: texto, disco: texto, tipo_disco: texto, sistema_operativo: texto,
-  ubicacion: texto, sector: texto, usuario: texto,
-  fecha_adquisicion: fecha, garantia_hasta: fecha,
-  observaciones: z.string().max(65535).nullable(),
-};
-const tipo = z.string().min(1, 'El tipo es obligatorio').max(255);
-const opcionales = Object.fromEntries(Object.entries(CAMPOS).map(([k, v]) => [k, v.optional()]));
-const crearSchema = z.strictObject({ ...opcionales, tipo, estado: estado.optional() });
-const editarSchema = z.strictObject({
-  ...opcionales, tipo: tipo.optional(), estado: estado.optional(),
-}).refine((o) => Object.keys(o).length > 0, 'No hay datos para modificar');
-
-// camposModificados recorre las claves en el orden en que las mandó el cliente (zod las reordena según el schema).
-const enOrdenDelCliente = (req) => Object.fromEntries(Object.keys(req.body).filter((k) => k in req.datos).map((k) => [k, req.datos[k]]));
+const enOrdenDelCliente = (req) => enOrden(req.body, req.datos);
 
 const actor = (req) => req.usuario.nombre || 'Sistema';
 const leer = async (db, id) => (await db.query('SELECT * FROM equipos WHERE id = ?', [id]))[0][0];
 
-// Dentro de la transacción: bloquea la fila (decisiones sobre su estado actual) o 404.
-async function bloquear(conn, id) {
-  const [[f]] = await conn.query('SELECT * FROM equipos WHERE id = ? FOR UPDATE', [id]);
-  if (!f) throw errorHttp(404, 'No encontrado');
-  return f;
-}
+const bloquear = bloquearEquipo;
 
 const BOOL = z.enum(['true', 'false']);
 const listarSchema = z.object({ sede: z.string().min(1).optional(), ordenado: BOOL.optional() });
@@ -89,12 +63,7 @@ export function crearRutasEquipos() {
   r.post('/', exige(ACCIONES.EQUIPOS_ESCRIBIR), validar(crearSchema), envolver(async (req, res) => {
     const { db } = req.app.locals;
     const d = enOrdenDelCliente(req);
-    const id = randomUUID();
-    const cols = ['id', ...Object.keys(d)];
-    await enTransaccion(db, async (conn) => {
-      await conn.query(`INSERT INTO equipos (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, [id, ...Object.values(d)]);
-      await movimiento(conn, 'Alta', `Equipo dado de alta: ${identificarEquipo(d)}`, actor(req), id);
-    });
+    const id = await enTransaccion(db, (conn) => aplicarAlta(conn, d, actor(req)));
     res.status(201).json(await leer(db, id));
   }));
 
@@ -102,15 +71,7 @@ export function crearRutasEquipos() {
   r.patch('/:id', exige(ACCIONES.EQUIPOS_ESCRIBIR), validar(editarSchema), envolver(async (req, res) => {
     const { db } = req.app.locals;
     const d = enOrdenDelCliente(req);
-    const cols = Object.keys(d);
-    await enTransaccion(db, async (conn) => {
-      const f = await bloquear(conn, req.params.id);
-      if (f.estado === 'Baja Definitiva') throw errorHttp(409, 'El equipo está dado de baja definitivamente');
-      await conn.query(`UPDATE equipos SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`, [...Object.values(d), f.id]);
-      const cambios = camposModificados(f, d);
-      await movimiento(conn, 'Modificación',
-        `Equipo modificado: ${identificarEquipo({ ...f, ...d })}${cambios.length ? ` — ${cambios.join('; ')}` : ''}`, actor(req), f.id);
-    });
+    await enTransaccion(db, (conn) => aplicarModificacion(conn, req.params.id, d, actor(req)));
     res.json(await leer(db, req.params.id));
   }));
 
@@ -126,12 +87,11 @@ export function crearRutasEquipos() {
     res.json(await leer(db, req.params.id));
   });
 
-  // equipos.darDeBaja(equipo, actor)
-  r.post('/:id/baja', exige(ACCIONES.EQUIPOS_ESCRIBIR), transicion({
-    permitido: (e) => e !== 'Baja Definitiva', // como el frontend: sobre 'De baja' actualiza y registra de nuevo
-    conflicto: 'El equipo está dado de baja definitivamente',
-    set: { sql: "estado = 'De baja'", params: () => [] },
-    tipoMov: 'Baja', desc: 'Equipo dado de baja',
+  // equipos.darDeBaja(equipo, actor): como el frontend, sobre 'De baja' actualiza y registra de nuevo.
+  r.post('/:id/baja', exige(ACCIONES.EQUIPOS_ESCRIBIR), envolver(async (req, res) => {
+    const { db } = req.app.locals;
+    await enTransaccion(db, (conn) => aplicarBaja(conn, req.params.id, actor(req)));
+    res.json(await leer(db, req.params.id));
   }));
 
   // equipos.bajaDefinitiva(equipo, actor): no borra; solo desde 'De baja' (como el botón de la UI).
