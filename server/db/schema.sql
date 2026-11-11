@@ -1,0 +1,1 @@
+-- Esquema MySQL/MariaDB: lo completa la Tarea 5.

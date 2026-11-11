@@ -38,3 +38,7 @@ hosting.txt
 
 # Espacio de trabajo de subagentes (local)
 .superpowers/
+
+# Servidor
+server/.env
+server/node_modules
