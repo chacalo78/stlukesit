@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../supabase'
+import { movimientos } from '../api'
 import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, leerBorradorEquipo, guardarBorradorEquipo, limpiarBorradorEquipo } from '../constants'
 
 const BADGE_MOVIMIENTO = {
@@ -76,13 +76,10 @@ function ModalEquipo({ equipo, readOnly, onClose, onSave }) {
   useEffect(() => {
     if (!equipo?.id) { setHistorial([]); return }
     setHistorialLoading(true)
-    supabase
-      .from('movimientos')
-      .select('*')
-      .eq('equipo_id', equipo.id)
-      .order('fecha', { ascending: false })
-      .then(({ data }) => {
-        setHistorial(data || [])
+    movimientos.listarPorEquipo(equipo.id)
+      .catch(() => [])
+      .then(data => {
+        setHistorial(data)
         setHistorialLoading(false)
       })
   }, [equipo?.id])

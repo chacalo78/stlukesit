@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
-import { CAMPOS_LABEL_EQUIPO as CAMPOS_LABEL, identificarEquipo, camposModificados } from '../constants'
+import { solicitudes as apiSolicitudes } from '../api'
+import { CAMPOS_LABEL_EQUIPO as CAMPOS_LABEL } from '../constants'
 
 function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }) {
   const [solicitudes, setSolicitudes] = useState([])
@@ -15,15 +15,7 @@ function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }
 
   async function cargarSolicitudes() {
     setLoading(true)
-    let query = supabase
-      .from('solicitudes_cambio')
-      .select('*, equipos(numero_inventario, tipo, marca, modelo)')
-      .order('fecha_solicitud', { ascending: false })
-    if (!canApproveChanges) {
-      query = query.eq('solicitado_por_email', currentUserEmail)
-    }
-    const { data } = await query
-    setSolicitudes(data || [])
+    setSolicitudes(await apiSolicitudes.listar(canApproveChanges ? undefined : currentUserEmail).catch(() => []))
     setLoading(false)
   }
 
@@ -43,47 +35,9 @@ function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }
   async function handleAprobar(s) {
     if (!window.confirm(`¿Aprobar esta solicitud de ${s.tipo_accion.toLowerCase()}?`)) return
 
-    let error
-    if (s.tipo_accion === 'Alta') {
-      const res = await supabase.from('equipos').insert(s.datos_propuestos).select().single()
-      error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        equipo_id: res.data.id,
-        tipo_movimiento: 'Alta',
-        descripcion: `Equipo dado de alta: ${identificarEquipo(s.datos_propuestos)} (solicitado por ${s.solicitado_por})`,
-        usuario: currentUserNombre || 'Sistema'
-      })
-    } else if (s.tipo_accion === 'Modificación') {
-      const res = await supabase.from('equipos').update(s.datos_propuestos).eq('id', s.equipo_id)
-      error = res.error
-      if (!error) {
-        const cambios = camposModificados(s.datos_anteriores, s.datos_propuestos)
-        const cambiosTxt = cambios.length ? ` — ${cambios.join('; ')}` : ''
-        await supabase.from('movimientos').insert({
-          equipo_id: s.equipo_id,
-          tipo_movimiento: 'Modificación',
-          descripcion: `Equipo modificado: ${identificarEquipo(s.datos_propuestos)}${cambiosTxt} (solicitado por ${s.solicitado_por})`,
-          usuario: currentUserNombre || 'Sistema'
-        })
-      }
-    } else {
-      const res = await supabase.from('equipos').update({ estado: 'De baja' }).eq('id', s.equipo_id)
-      error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        equipo_id: s.equipo_id,
-        tipo_movimiento: 'Baja',
-        descripcion: `Equipo dado de baja: ${identificarEquipo(s.datos_anteriores)} (solicitado por ${s.solicitado_por})`,
-        usuario: currentUserNombre || 'Sistema'
-      })
-    }
-
-    if (error) { showToast('Error al aplicar el cambio: ' + error.message, 'error'); return }
-
-    await supabase.from('solicitudes_cambio').update({
-      estado: 'Aprobado',
-      resuelto_por: currentUserNombre || 'Sistema',
-      fecha_resolucion: new Date().toISOString()
-    }).eq('id', s.id)
+    try {
+      await apiSolicitudes.aprobar(s, currentUserNombre)
+    } catch (err) { showToast('Error al aplicar el cambio: ' + err.message, 'error'); return }
 
     showToast('Solicitud aprobada y aplicada')
     cargarSolicitudes()
@@ -93,14 +47,9 @@ function Aprobaciones({ canApproveChanges, currentUserEmail, currentUserNombre }
     if (!window.confirm('¿Rechazar esta solicitud?')) return
     const comentario = window.prompt('Motivo del rechazo (opcional):', '') || null
 
-    const { error } = await supabase.from('solicitudes_cambio').update({
-      estado: 'Rechazado',
-      resuelto_por: currentUserNombre || 'Sistema',
-      fecha_resolucion: new Date().toISOString(),
-      comentario_resolucion: comentario
-    }).eq('id', s.id)
-
-    if (error) { showToast('Error al rechazar', 'error'); return }
+    try {
+      await apiSolicitudes.rechazar(s.id, comentario, currentUserNombre)
+    } catch { showToast('Error al rechazar', 'error'); return }
     showToast('Solicitud rechazada')
     cargarSolicitudes()
   }

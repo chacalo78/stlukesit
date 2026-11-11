@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { equipos as apiEquipos, movimientos, prestamos } from '../api'
 import ModalEquipo from './ModalEquipo'
 import { TIPOS_REPORTABLES } from '../constants'
 
@@ -14,30 +14,21 @@ function Dashboard({ sedeScoped, currentUserSede, onVerEquipos, onVerPrestamos }
     async function cargarDatos() {
       const restringirSede = sedeScoped && currentUserSede
 
-      let equiposQuery = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva')
-      if (restringirSede) equiposQuery = equiposQuery.eq('ubicacion', currentUserSede)
-      const { data: equiposData } = await equiposQuery
+      const equiposData = await apiEquipos.listar({ sede: restringirSede ? currentUserSede : undefined }).catch(() => [])
 
       // Traemos movimientos para calcular hace cuánto cada equipo pasó
       // a "Requiere atención".
-      const { data: allMovsData } = await supabase
-        .from('movimientos')
-        .select('*, equipos(ubicacion)')
-        .order('fecha', { ascending: false })
-        .limit(500)
+      const allMovsData = await movimientos.listar({ limite: 500, columnasEquipo: 'ubicacion' }).catch(() => [])
       const movsFiltrados = restringirSede
-        ? (allMovsData || []).filter(m => m.equipos?.ubicacion === currentUserSede)
-        : (allMovsData || [])
+        ? allMovsData.filter(m => m.equipos?.ubicacion === currentUserSede)
+        : allMovsData
 
-      const { data: prestamosData } = await supabase
-        .from('prestamos')
-        .select('*, equipos(ubicacion)')
-        .is('fecha_devolucion_real', null)
+      const prestamosData = await prestamos.listarActivos().catch(() => [])
       const prestamosFiltrados = restringirSede
-        ? (prestamosData || []).filter(p => p.equipos?.ubicacion === currentUserSede)
-        : (prestamosData || [])
+        ? prestamosData.filter(p => p.equipos?.ubicacion === currentUserSede)
+        : prestamosData
 
-      setEquipos((equiposData || []).filter(e => TIPOS_REPORTABLES.includes(e.tipo)))
+      setEquipos(equiposData.filter(e => TIPOS_REPORTABLES.includes(e.tipo)))
       setTodosMovimientos(movsFiltrados)
       setPrestamosActivos(prestamosFiltrados)
       setLoading(false)

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { equipos as apiEquipos, solicitudes } from '../api'
 import ModalEquipo from './ModalEquipo'
-import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, camposModificados, leerBorradorEquipo } from '../constants'
+import { ESTADOS_EQUIPO, TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo, leerBorradorEquipo } from '../constants'
 
 const PAGE_SIZE = 15
 
@@ -30,21 +30,13 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
     setLoading(true)
     // 'Baja Definitiva' queda fuera del listado operativo: tiene su
     // propia sección (Bajas Definitivas).
-    let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva').order('numero_inventario', { ascending: true })
     // Coordinador/Director solo ven su sede
-    if (sedeScoped && currentUserSede) {
-      query = query.eq('ubicacion', currentUserSede)
-    }
-    const { data } = await query
-    setEquipos(data || [])
+    const sede = sedeScoped && currentUserSede ? currentUserSede : undefined
+    setEquipos(await apiEquipos.listar({ sede, ordenado: true }).catch(() => []))
 
     if (requiresApproval) {
-      const { data: pendientes } = await supabase
-        .from('solicitudes_cambio')
-        .select('equipo_id')
-        .eq('estado', 'Pendiente')
-        .not('equipo_id', 'is', null)
-      setPendientesPorEquipo(new Set((pendientes || []).map(p => p.equipo_id)))
+      const pendientes = await solicitudes.equiposConPendientes().catch(() => [])
+      setPendientesPorEquipo(new Set(pendientes))
     }
 
     setLoading(false)
@@ -96,15 +88,16 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
     }
 
     if (requiresApproval) {
-      const { error } = await supabase.from('solicitudes_cambio').insert({
-        tipo_accion: equipoEditando ? 'Modificación' : 'Alta',
-        equipo_id: equipoEditando?.id ?? null,
-        datos_propuestos: payload,
-        datos_anteriores: equipoEditando ?? null,
-        solicitado_por: currentUserNombre || 'Sistema',
-        solicitado_por_email: currentUserEmail || null,
-      })
-      if (error) { showToast('Error: ' + error.message, 'error'); return }
+      try {
+        await solicitudes.crear({
+          tipo_accion: equipoEditando ? 'Modificación' : 'Alta',
+          equipo_id: equipoEditando?.id ?? null,
+          datos_propuestos: payload,
+          datos_anteriores: equipoEditando ?? null,
+          solicitado_por: currentUserNombre || 'Sistema',
+          solicitado_por_email: currentUserEmail || null,
+        })
+      } catch (err) { showToast('Error: ' + err.message, 'error'); return }
       showToast('Solicitud enviada, pendiente de aprobación de un administrador')
       setModalOpen(false)
       setEquipoEditando(null)
@@ -112,32 +105,13 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
       return
     }
 
-    let error
-    if (equipoEditando) {
-      const res = await supabase.from('equipos').update(payload).eq('id', equipoEditando.id)
-      error = res.error
-      if (!error) {
-        const cambios = camposModificados(equipoEditando, payload)
-        const cambiosTxt = cambios.length ? ` — ${cambios.join('; ')}` : ''
-        await supabase.from('movimientos').insert({
-          equipo_id: equipoEditando.id,
-          tipo_movimiento: 'Modificación',
-          descripcion: `Equipo modificado: ${identificarEquipo(payload)}${cambiosTxt}`,
-          usuario: currentUserNombre || 'Sistema'
-        })
+    try {
+      if (equipoEditando) {
+        await apiEquipos.actualizar(equipoEditando.id, payload, equipoEditando, currentUserNombre)
+      } else {
+        await apiEquipos.crear(payload, currentUserNombre)
       }
-    } else {
-      const res = await supabase.from('equipos').insert(payload).select().single()
-      error = res.error
-      if (!error) await supabase.from('movimientos').insert({
-        equipo_id: res.data.id,
-        tipo_movimiento: 'Alta',
-        descripcion: `Equipo dado de alta: ${identificarEquipo(payload)}`,
-        usuario: currentUserNombre || 'Sistema'
-      })
-    }
-
-    if (error) { showToast('Error: ' + error.message, 'error'); return }
+    } catch (err) { showToast('Error: ' + err.message, 'error'); return }
     showToast(equipoEditando ? 'Equipo actualizado' : 'Equipo creado correctamente')
     setModalOpen(false)
     setEquipoEditando(null)
@@ -147,29 +121,25 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   async function handleBaja(equipo) {
     if (requiresApproval) {
       if (!window.confirm(`¿Enviar solicitud de baja del equipo "${identificarEquipo(equipo)}" para que la apruebe un administrador?`)) return
-      const { error } = await supabase.from('solicitudes_cambio').insert({
-        tipo_accion: 'Baja',
-        equipo_id: equipo.id,
-        datos_propuestos: { estado: 'De baja' },
-        datos_anteriores: equipo,
-        solicitado_por: currentUserNombre || 'Sistema',
-        solicitado_por_email: currentUserEmail || null,
-      })
-      if (error) { showToast('Error: ' + error.message, 'error'); return }
+      try {
+        await solicitudes.crear({
+          tipo_accion: 'Baja',
+          equipo_id: equipo.id,
+          datos_propuestos: { estado: 'De baja' },
+          datos_anteriores: equipo,
+          solicitado_por: currentUserNombre || 'Sistema',
+          solicitado_por_email: currentUserEmail || null,
+        })
+      } catch (err) { showToast('Error: ' + err.message, 'error'); return }
       showToast('Solicitud de baja enviada, pendiente de aprobación')
       cargarEquipos()
       return
     }
 
     if (!window.confirm(`¿Confirmar baja del equipo "${identificarEquipo(equipo)}"?`)) return
-    const { error } = await supabase.from('equipos').update({ estado: 'De baja' }).eq('id', equipo.id)
-    if (error) { showToast('Error al dar de baja', 'error'); return }
-    await supabase.from('movimientos').insert({
-      equipo_id: equipo.id,
-      tipo_movimiento: 'Baja',
-      descripcion: `Equipo dado de baja: ${identificarEquipo(equipo)}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
+    try {
+      await apiEquipos.darDeBaja(equipo, currentUserNombre)
+    } catch { showToast('Error al dar de baja', 'error'); return }
     showToast('Equipo dado de baja')
     cargarEquipos()
   }
@@ -177,19 +147,9 @@ function Equipos({ puedeEditar, puedeEliminar, sedeScoped, currentUserNombre, cu
   async function handleBajaDefinitiva(equipo) {
     if (!window.confirm(`¿Dar de baja definitiva al equipo "${identificarEquipo(equipo)}"? Pasa a la sección Bajas Definitivas y deja de aparecer en Equipos, Dashboard y Reportes. Un Super Administrador puede restaurarlo desde ahí.`)) return
 
-    const { error } = await supabase.from('equipos').update({
-      estado: 'Baja Definitiva',
-      fecha_baja_definitiva: new Date().toISOString(),
-      dado_de_baja_definitiva_por: currentUserNombre || 'Sistema'
-    }).eq('id', equipo.id)
-    if (error) { showToast('Error al dar de baja definitiva: ' + error.message, 'error'); return }
-
-    await supabase.from('movimientos').insert({
-      equipo_id: equipo.id,
-      tipo_movimiento: 'Baja Definitiva',
-      descripcion: `Equipo dado de baja definitiva: ${identificarEquipo(equipo)}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
+    try {
+      await apiEquipos.bajaDefinitiva(equipo, currentUserNombre)
+    } catch (err) { showToast('Error al dar de baja definitiva: ' + err.message, 'error'); return }
     showToast('Equipo dado de baja definitiva')
     cargarEquipos()
   }

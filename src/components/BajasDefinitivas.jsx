@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { equipos as apiEquipos } from '../api'
 import ModalEquipo from './ModalEquipo'
 import { TIPOS_EQUIPO, SEDES, SECTORES, identificarEquipo } from '../constants'
 
@@ -19,12 +19,7 @@ function BajasDefinitivas({ currentUserNombre }) {
 
   async function cargarEquipos() {
     setLoading(true)
-    const { data } = await supabase
-      .from('equipos')
-      .select('*')
-      .eq('estado', 'Baja Definitiva')
-      .order('fecha_baja_definitiva', { ascending: false })
-    setEquipos(data || [])
+    setEquipos(await apiEquipos.listarBajasDefinitivas().catch(() => []))
     setLoading(false)
   }
 
@@ -47,15 +42,9 @@ function BajasDefinitivas({ currentUserNombre }) {
   async function handleRestaurar(equipo) {
     if (!window.confirm(`¿Restaurar el equipo "${identificarEquipo(equipo)}"? Vuelve a estado "Activo" y reaparece en Equipos, Dashboard y Reportes.`)) return
 
-    const { error } = await supabase.from('equipos').update({ estado: 'Activo' }).eq('id', equipo.id)
-    if (error) { showToast('Error al restaurar: ' + error.message, 'error'); return }
-
-    await supabase.from('movimientos').insert({
-      equipo_id: equipo.id,
-      tipo_movimiento: 'Modificación',
-      descripcion: `Equipo restaurado desde Bajas Definitivas: ${identificarEquipo(equipo)}`,
-      usuario: currentUserNombre || 'Sistema'
-    })
+    try {
+      await apiEquipos.restaurar(equipo, currentUserNombre)
+    } catch (err) { showToast('Error al restaurar: ' + err.message, 'error'); return }
     showToast('Equipo restaurado')
     cargarEquipos()
   }

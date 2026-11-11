@@ -1,6 +1,6 @@
 import { supabase } from '../../supabase'
 import { ROLE_LABELS } from '../../roles'
-import { registrarMovimiento } from './_movimientos'
+import { registrar as registrarMovimiento } from './movimientos'
 
 // Fila de user_roles del usuario en sesión, o null si no existe / falla
 // la consulta (igual que antes: el error se ignoraba).

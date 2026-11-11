@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { equipos as apiEquipos } from '../api'
 import { Doughnut, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -34,10 +34,8 @@ function Reportes({ sedeScoped, currentUserSede }) {
 
   useEffect(() => {
     async function cargarDatos() {
-      let query = supabase.from('equipos').select('*').neq('estado', 'Baja Definitiva')
-      if (sedeScoped && currentUserSede) query = query.eq('ubicacion', currentUserSede)
-      const { data } = await query
-      setEquipos((data || []).filter(e => e.estado !== 'De baja' && TIPOS_REPORTABLES.includes(e.tipo)))
+      const data = await apiEquipos.listar({ sede: sedeScoped && currentUserSede ? currentUserSede : undefined }).catch(() => [])
+      setEquipos(data.filter(e => e.estado !== 'De baja' && TIPOS_REPORTABLES.includes(e.tipo)))
       setLoading(false)
     }
     cargarDatos()

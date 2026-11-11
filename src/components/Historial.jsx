@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../supabase'
+import { movimientos as apiMovimientos } from '../api'
 import ModalEquipo from './ModalEquipo'
 
 function Historial({ sedeScoped, currentUserSede }) {
@@ -9,12 +9,7 @@ function Historial({ sedeScoped, currentUserSede }) {
 
   useEffect(() => {
     async function cargarHistorial() {
-      const { data } = await supabase
-        .from('movimientos')
-        .select('*, equipos(*)')
-        .order('fecha', { ascending: false })
-        .limit(200)
-      let rows = data || []
+      let rows = await apiMovimientos.listar({ limite: 200 }).catch(() => [])
       if (sedeScoped && currentUserSede) {
         rows = rows.filter(m => m.equipos?.ubicacion === currentUserSede)
       }
