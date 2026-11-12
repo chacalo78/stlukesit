@@ -24,7 +24,16 @@ const buttonStyle = {
   letterSpacing: '.3px'
 }
 
+// Enlaces de la API propia: /?token=<t>&tipo=recuperacion|invitacion.
+// Con Supabase no hay token en la URL (la sesión de recuperación va aparte).
+function leerEnlace() {
+  const p = new URLSearchParams(window.location.search)
+  return { token: p.get('token'), tipo: p.get('tipo') }
+}
+
 function UpdatePassword({ onDone }) {
+  const { token, tipo } = leerEnlace()
+  const esInvitacion = tipo === 'invitacion'
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -46,12 +55,15 @@ function UpdatePassword({ onDone }) {
     setLoading(true)
     setError('')
     try {
-      await auth.cambiarPassword(password)
+      await auth.establecerPasswordConToken(token, password)
+      // Se limpia ?token=&tipo= para que el enlace no quede en la barra ni se reuse.
+      if (token) window.history.replaceState(null, '', window.location.pathname + window.location.hash)
       setLoading(false)
       onDone()
-    } catch {
+    } catch (err) {
       setLoading(false)
-      setError('No pudimos actualizar la contraseña. Probá pedir el enlace de nuevo.')
+      // Los errores de la API propia (enlace vencido, contraseña inválida) traen mensaje en español.
+      setError(err.status ? err.message : 'No pudimos actualizar la contraseña. Probá pedir el enlace de nuevo.')
     }
   }
 
@@ -75,10 +87,10 @@ function UpdatePassword({ onDone }) {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <h1 style={{ color: '#c8a44a', fontSize: '18px', fontWeight: '700', marginBottom: '4px', letterSpacing: '.5px' }}>
-            Nueva contraseña
+            {esInvitacion ? 'Creá tu contraseña' : 'Nueva contraseña'}
           </h1>
           <p style={{ color: '#5c7a5e', fontSize: '12px' }}>
-            Elegí una nueva contraseña para tu cuenta
+            {esInvitacion ? 'Elegí una contraseña para activar tu cuenta' : 'Elegí una nueva contraseña para tu cuenta'}
           </p>
         </div>
 

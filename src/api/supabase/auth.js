@@ -58,3 +58,9 @@ export async function cambiarPassword(passwordNueva, passwordActual) {
   if (error) throw new Error('No pudimos actualizar la contraseña.')
   supabase.functions.invoke('notify-password-changed').catch(() => {})
 }
+
+// Con Supabase el enlace del mail abre una sesión de recuperación: el token
+// no se usa y la contraseña se cambia con esa sesión.
+export async function establecerPasswordConToken(_token, password) {
+  await cambiarPassword(password)
+}
