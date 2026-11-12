@@ -41,3 +41,25 @@ Notas:
 ## Producción
 
 Copiar `.env.example` a `.env` (o cargar las variables en hPanel). `npm start` falla al arrancar si faltan las variables requeridas (base de datos, `SESSION_SECRET` de 32+ caracteres, `APP_URL`, `CORS_ORIGINS` y SMTP).
+
+## Backups
+
+`scripts/backup.js` hace un volcado lógico de la base y lo guarda en `~/backups/stlukesit/<DB_NAME>-YYYYMMDD-HHMMSS.sql.gz` (directorio 700, archivo 600, fuera de `public_html`). Conserva los 30 más nuevos de esa base. Se escribe a un `.tmp` y se renombra al terminar, así un volcado a medias nunca parece válido. No incluye los datos de `sesiones` (efímeros, con secretos de sesión); sí su estructura.
+
+Credenciales, clave por clave y en este orden: variables de entorno del proceso, `.env` en la raíz de la app (junto a `package.json`) y `~/.stlukesit-backup.env` (formato `DB_HOST=`, `DB_PORT=`, `DB_USER=`, `DB_PASSWORD=`, `DB_NAME=`). Opcional: `BACKUP_DIR` para cambiar el destino y `BACKUP_METODO=node|mysqldump` para forzar el método (por defecto usa `mysqldump` si existe y, si falla o no está, un volcado en Node puro).
+
+Cron diario en Hostinger (hPanel > Avanzado > Cron Jobs, o el conector de Hostinger), 03:00:
+
+```
+0 3 * * * /usr/bin/env node /home/u850855608/domains/api-inventario.chacalo.com.ar/hbuilds/current/nodejs/scripts/backup.js
+```
+
+La ruta de `node` puede ser otra (Hostinger instala varias versiones; si `/usr/bin/env node` no encuentra una 22.x, usar la ruta completa del binario). Revisar la salida del cron al día siguiente: una línea `backup OK: ...` con archivo, tamaño, tablas y método, o `backup FALLÓ: ...` (código de salida 1) con el motivo, sin contraseñas. Correrlo a mano con `npm run backup` desde el directorio de la app.
+
+Restaurar en una base **vacía** (la base destino sale de `DB_NAME`; `--confirmar` debe ser su nombre exacto):
+
+```
+DB_NAME=base_vacia node scripts/restaurar.js --archivo=$HOME/backups/stlukesit/ARCHIVO.sql.gz --confirmar=base_vacia
+```
+
+`restaurar.js` se niega a tocar una base con tablas. Con cliente MySQL también sirve: `gunzip -c ARCHIVO.sql.gz | mysql -u USUARIO -p BASE_VACIA`.
