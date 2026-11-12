@@ -2,11 +2,10 @@
 //   node scripts/restaurar.js --archivo=<ruta.sql.gz> --confirmar=<nombre exacto de la base destino>
 // La base destino sale de DB_NAME (mismas fuentes de credenciales que backup.js). Se niega a tocar una base con tablas.
 import { createReadStream } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
 import mysql from 'mysql2/promise';
 import { parsearArgs } from './lib/conexion.js';
-import { resolverCredenciales } from './backup.js';
+import { esPrincipal, resolverCredenciales } from './backup.js';
 
 async function leerGz(ruta) {
   const partes = [];
@@ -37,7 +36,7 @@ export async function restaurar({ archivo, confirmar, credenciales }) {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (esPrincipal(import.meta.url)) {
   try {
     const a = parsearArgs(process.argv.slice(2));
     const r = await restaurar({ archivo: a.archivo, confirmar: a.confirmar });

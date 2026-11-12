@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
+import { symlinkSync } from 'node:fs';
+import { Writable } from 'node:stream';
 import mysql from 'mysql2/promise';
 import { crearDbDeTest, limpiar } from './helpers.js';
 import { hacerBackup, resolverCredenciales, rotar } from '../scripts/backup.js';
@@ -112,7 +114,7 @@ describe('fallos y fallback', () => {
     expect(readdirSync(dir)).toEqual([]);
     const r = await hacerBackup({ credenciales: { ...creds, dir }, metodo: 'auto', mysqldumpBin: 'no-existe-mysqldump' });
     expect(r.metodo).toBe('node');
-    expect(r.aviso).toMatch(/volcado en Node/);
+    expect(r.respaldo).toMatch(/no-existe-mysqldump falló: no está en el PATH/);
     expect(readdirSync(dir)).toEqual([r.archivo.split('/').pop()]);
   });
 });
@@ -158,5 +160,59 @@ describe('restaurar: guardas', () => {
     await expect(restaurar({ archivo, credenciales: { ...CFG, database: pool.nombreDbTest } })).rejects.toThrow(/--confirmar/);
     await expect(restaurar({ archivo, confirmar: 'otra', credenciales: { ...CFG, database: pool.nombreDbTest } })).rejects.toThrow(/no coincide/);
     await expect(restaurar({ archivo, confirmar: pool.nombreDbTest, credenciales: { ...CFG, database: pool.nombreDbTest } })).rejects.toThrow(/vacía/);
+  });
+});
+
+describe('escritura fallida y timeout', () => {
+  it('un error al escribir el archivo rechaza (sin colgarse), sin .tmp y sin tocar backups previos', async () => {
+    const dir = join(tmp, 'enospc');
+    mkdirSync(dir);
+    const previo = join(dir, `${creds.database}-20200101-030000.sql.gz`);
+    writeFileSync(previo, 'previo');
+    const crearSalida = () => new Writable({ write(_c, _e, cb) { cb(Object.assign(new Error('ENOSPC: no space left'), { code: 'ENOSPC' })); } });
+    await expect(hacerBackup({ credenciales: { ...creds, dir }, metodo: 'node', crearSalida })).rejects.toThrow(/ENOSPC/);
+    expect(readdirSync(dir)).toEqual([`${creds.database}-20200101-030000.sql.gz`]);
+    expect(readFileSync(previo, 'utf8')).toBe('previo');
+  });
+
+  it('el timeout general aborta y falla', async () => {
+    const dir = join(tmp, 'timeout');
+    await expect(hacerBackup({ credenciales: { ...creds, dir }, metodo: 'node', timeoutMs: 1 })).rejects.toThrow(/tiempo máximo/);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+});
+
+describe('línea de salida del script (hijo, vía symlink, otro cwd)', () => {
+  let enlace;
+  const entorno = (extra = {}) => ({ PATH: process.env.PATH, DB_HOST: CFG.host, DB_PORT: String(CFG.port), DB_USER: CFG.user, DB_PASSWORD: CFG.password, DB_NAME: creds.database, BACKUP_DIR: join(tmp, 'cli'), HOME: tmp, ...extra });
+  beforeAll(() => { enlace = join(tmp, 'enlace'); symlinkSync(join(import.meta.dirname, '..'), enlace); });
+
+  it('ejecutado por un symlink genera el backup y sale 0', () => {
+    const r = spawnSync(process.execPath, [join(enlace, 'scripts', 'backup.js')], { cwd: tmp, env: entorno(), encoding: 'utf8' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/^backup OK: .*\.sql\.gz .*método=(mysqldump|node)/);
+    expect(readdirSync(join(tmp, 'cli')).filter((f) => f.endsWith('.sql.gz'))).toHaveLength(1);
+  });
+
+  it('por symlink y con credenciales malas sale distinto de 0 y avisa, sin contraseña', () => {
+    const r = spawnSync(process.execPath, [join(enlace, 'scripts', 'backup.js')], { cwd: tmp, env: entorno({ DB_PASSWORD: 'clave-mala-123', BACKUP_DIR: join(tmp, 'cli2') }), encoding: 'utf8' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/backup FALLÓ/);
+    expect(r.stderr + r.stdout).not.toContain('clave-mala-123');
+  });
+
+  it('restaurar.js por symlink también corre (falla pidiendo --archivo)', () => {
+    const r = spawnSync(process.execPath, [join(enlace, 'scripts', 'restaurar.js')], { cwd: tmp, env: entorno(), encoding: 'utf8' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/--archivo/);
+  });
+
+  it('en auto, si mysqldump/mariadb-dump no existen, la línea de éxito dice que se usó el respaldo en Node', () => {
+    const solo = join(tmp, 'solo-node');
+    mkdirSync(solo);
+    symlinkSync(process.execPath, join(solo, 'node'));
+    const r = spawnSync(process.execPath, [join(enlace, 'scripts', 'backup.js')], { cwd: tmp, env: entorno({ PATH: solo, BACKUP_DIR: join(tmp, 'cli3') }), encoding: 'utf8' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/método=node \(respaldo: mysqldump falló: no está en el PATH; mariadb-dump falló: no está en el PATH\)/);
   });
 });
