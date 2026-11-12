@@ -238,7 +238,10 @@ async function generar(c, bin, { ahora, timeoutMs, crearSalida }) {
     return { archivo: final, bytes: statSync(final).size, tablas };
   } catch (err) {
     abortar(err);
-    gz.destroy(); archivo.destroy();
+    gz.destroy();
+    // Esperar el cierre: si el open() de 'wx' aún no terminó, borrar antes dejaría el .tmp huérfano
+    // y el siguiente intento (mismo segundo y pid, p. ej. el fallback a Node) fallaría con EEXIST.
+    if (!archivo.closed) { const cerrado = new Promise((res) => archivo.once('close', res)); archivo.destroy(); await cerrado; }
     try { unlinkSync(tmp); } catch { /* no existía */ }
     throw err;
   } finally {
