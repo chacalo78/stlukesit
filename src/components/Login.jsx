@@ -24,6 +24,36 @@ const buttonStyle = {
   letterSpacing: '.3px'
 }
 
+// Fondos de hardware (Unsplash, licencia libre) guardados en escala de grises; el verde se aplica por CSS.
+// Se elige uno al azar en cada carga de la página.
+const FONDOS = [1, 2, 3, 4, 5, 6].map(n => `${import.meta.env.BASE_URL}fondos/fondo-${n}.jpg`)
+
+function FondoLogin() {
+  const [src] = useState(() => FONDOS[Math.floor(Math.random() * FONDOS.length)])
+  const [cargado, setCargado] = useState(false)
+  return (
+    <div aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <img
+        src={src}
+        alt=""
+        onLoad={() => setCargado(true)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          filter: 'contrast(1.1) brightness(.95)',
+          opacity: cargado ? 1 : 0,
+          transition: 'opacity .6s ease'
+        }}
+      />
+      {/* Tiñe la foto de verde (monocromático) y la oscurece para que el recuadro se lea bien */}
+      <div style={{ position: 'absolute', inset: 0, background: '#3f8a46', mixBlendMode: 'color' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,21,11,.45)' }} />
+    </div>
+  )
+}
+
 function Login({ sesionExpirada }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
@@ -85,9 +115,13 @@ function Login({ sesionExpirada }) {
       justifyContent: 'center',
       minHeight: '100vh',
       padding: '24px',
+      position: 'relative',
       background: 'linear-gradient(135deg, #0a150b 0%, #1a3d1c 50%, #0f1a10 100%)'
     }}>
+      <FondoLogin />
       <div style={{
+        position: 'relative',
+        zIndex: 1,
         background: 'rgba(21,33,22,0.95)',
         border: '1px solid #3a5a3d',
         borderRadius: '20px',
