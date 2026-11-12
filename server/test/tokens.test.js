@@ -235,6 +235,41 @@ describe('POST /api/auth/token', () => {
   });
 });
 
+describe('POST /api/auth/token: antes de bcrypt y límite por IP (m-3)', () => {
+  it('token inexistente, vencido o usado no llama a bcrypt.hash', async () => {
+    const spy = vi.spyOn(bcrypt, 'hash');
+    const usado = await nuevoToken('u-1', 'recuperacion');
+    await db.query('UPDATE tokens_password SET usado_at = UTC_TIMESTAMP(3)');
+    const vencido = await nuevoToken('u-1', 'invitacion');
+    await db.query("UPDATE tokens_password SET expira_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 HOUR) WHERE tipo='invitacion'");
+    for (const t of ['no-existe', usado, vencido]) {
+      const r = await post('/api/auth/token', { token: t, password: 'nueva-clave-1' });
+      expect(r.status).toBe(400);
+      expect(r.body).toEqual({ error: MSG_USADO });
+    }
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+  it('token válido sigue usando bcrypt y cambia la clave', async () => {
+    const spy = vi.spyOn(bcrypt, 'hash');
+    const t = await nuevoToken('u-1', 'recuperacion');
+    expect((await post('/api/auth/token', { token: t, password: 'nueva-clave-1' })).status).toBe(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+    await esperarPendientes();
+    await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [await bcrypt.hash('clave-ana', 4), 'u-1']);
+  });
+  it('tras 10 fallos desde la misma IP responde 429, incluso con un token válido', async () => {
+    for (let i = 0; i < 10; i++) {
+      expect((await post('/api/auth/token', { token: 'malo-' + i, password: 'nueva-clave-1' })).status).toBe(400);
+    }
+    const t = await nuevoToken('u-1', 'recuperacion');
+    const r = await post('/api/auth/token', { token: t, password: 'nueva-clave-1' });
+    expect(r.status).toBe(429);
+    expect((await consumirToken(db, t)).usuarioId).toBe('u-1'); // no se consumió
+  });
+});
+
 describe('POST /api/auth/password manda "contraseña cambiada"', () => {
   it('mail con el motivo de cambio propio', async () => {
     const cookie = await iniciarSesionComo(app, 'ana@colegio.test', 'clave-ana');

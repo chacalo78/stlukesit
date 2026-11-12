@@ -33,3 +33,13 @@ export async function consumirToken(db, token) {
   const [f] = await db.query('SELECT usuario_id, tipo FROM tokens_password WHERE token_hash = ?', [hash]);
   return { usuarioId: f[0].usuario_id, tipo: f[0].tipo };
 }
+
+// Chequeo barato (sin consumir): ¿existe el token y sigue vigente? Sirve para no gastar bcrypt con tokens inválidos.
+export async function tokenUsable(db, token) {
+  if (typeof token !== 'string' || !token || token.length > 200) return false;
+  const [f] = await db.query(
+    'SELECT 1 FROM tokens_password WHERE token_hash = ? AND usado_at IS NULL AND expira_at > UTC_TIMESTAMP(3)',
+    [sha256(token)],
+  );
+  return f.length > 0;
+}

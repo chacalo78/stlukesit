@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { errorHttp } from '../errores.js';
 import { crearLimiteIntentos } from './limiteIntentos.js';
 import { requiereSesion, promesa, limpiarCookie, cerrarSesionesDe } from './sesion.js';
-import { crearToken, consumirToken, MSG_ENLACE } from './tokens.js';
+import { crearToken, consumirToken, tokenUsable, MSG_ENLACE } from './tokens.js';
 import { enSegundoPlano, enviarSinEsperar } from '../mail/enviar.js';
 import * as plantillas from '../mail/plantillas.js';
 
@@ -28,6 +28,7 @@ const passwordSchema = z.object({
 const recuperarSchema = z.object({ email: z.string().trim().toLowerCase().min(1).max(255) });
 const tokenSchema = z.object({ token: z.string().min(1).max(200), password: claveNueva });
 
+const MAX_FALLOS_TOKEN_IP = 10;
 const MAX_MAILS_EMAIL = 3;
 const MAX_PEDIDOS_IP = 20;
 const HORA_MS = 60 * 60 * 1000;
@@ -48,6 +49,8 @@ export function crearRutasAuth({ ahora } = {}) {
   // R20: /recuperar -> 3 mails por email y 20 pedidos por IP, por hora.
   const limiteRecEmail = crearLimiteIntentos({ ahora, maxFallos: MAX_MAILS_EMAIL, ventanaMs: HORA_MS });
   const limiteRecIp = crearLimiteIntentos({ ahora, maxFallos: MAX_PEDIDOS_IP, ventanaMs: HORA_MS });
+  // /token: fallos (token inválido) por IP.
+  const limiteTokenIp = crearLimiteIntentos({ ahora, maxFallos: MAX_FALLOS_TOKEN_IP });
   const MSG_429 = 'Demasiados intentos. Probá de nuevo en unos minutos.';
   const r = Router();
 
@@ -148,6 +151,13 @@ export function crearRutasAuth({ ahora } = {}) {
   r.post('/token', envolver(async (req, res) => {
     const { token, password } = validar(tokenSchema, req.body);
     const { db, mailer } = req.app.locals;
+    const claveIp = `tok|${req.ip}`;
+    if (limiteTokenIp.bloqueado(claveIp)) throw errorHttp(429, MSG_429);
+    // Chequeo barato antes de bcrypt: un token inexistente/vencido/usado no debe costar un hash de costo 12.
+    if (!(await tokenUsable(db, token))) {
+      limiteTokenIp.registrarFallo(claveIp);
+      throw errorHttp(400, MSG_ENLACE);
+    }
     const hash = await bcrypt.hash(password, COSTO); // antes de abrir la transacción
     // Consumir el token y cambiar la clave en una sola transacción: si algo falla, el token no se gasta.
     const conn = await db.getConnection();
@@ -162,6 +172,7 @@ export function crearRutasAuth({ ahora } = {}) {
       await conn.commit();
     } catch (e) {
       await conn.rollback().catch(() => {});
+      if (e?.status === 400) limiteTokenIp.registrarFallo(claveIp); // perdió la carrera por el token
       throw e;
     } finally {
       conn.release();
