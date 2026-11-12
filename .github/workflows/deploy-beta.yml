@@ -1,0 +1,60 @@
+name: Deploy beta a Hostinger
+
+# Sitio beta (beta-inventario): frontend contra la API propia (Express + MySQL).
+# El de producción (main) es deploy.yml.
+on:
+  push:
+    branches: ["etapa-b"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "deploy-beta"
+  cancel-in-progress: false
+
+jobs:
+  hostinger-beta:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    steps:
+      - name: Checkout
+        if: env.FTP_SERVER != ''
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        if: env.FTP_SERVER != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        if: env.FTP_SERVER != ''
+        run: npm ci
+
+      - name: Compilar proyecto (backend propio)
+        if: env.FTP_SERVER != ''
+        run: npm run build
+        env:
+          VITE_BACKEND: propio
+          VITE_API_URL: https://api-inventario.chacalo.com.ar
+
+      # El certificado TLS del FTP de Hostinger es *.hstgr.io (no la IP): apuntamos
+      # hstgr.io a la IP del servidor para conectar por FTPS verificando el certificado.
+      - name: Resolver hstgr.io a la IP del FTP
+        if: env.FTP_SERVER != ''
+        run: echo "$FTP_SERVER hstgr.io" | sudo tee -a /etc/hosts
+
+      - name: Publicar beta en Hostinger por FTPS
+        if: env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: hstgr.io
+          protocol: ftps
+          username: ${{ secrets.FTP_BETA_USERNAME }}
+          password: ${{ secrets.FTP_BETA_PASSWORD }}
+          server-dir: ./
+          local-dir: ./dist/
