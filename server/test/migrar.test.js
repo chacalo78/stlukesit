@@ -138,8 +138,8 @@ describe('integración: migración completa', () => {
     clones.push(nombre);
     return urlDe(PG_COPIA, nombre);
   }
-  const ida = (pgUrl, extra = {}) => migrar({ desde: 'supabase', hacia: 'mysql', pgUrl, mysqlUrl: urlMy, confirmar: nombreMy, ...silencio, ...extra });
-  const vuelta = (pgUrl, extra = {}) => migrar({ desde: 'mysql', hacia: 'supabase', pgUrl, mysqlUrl: urlMy, confirmar: nombreDe(pgUrl), ...silencio, ...extra });
+  const ida = (pgUrl, extra = {}) => migrar({ desde: 'supabase', hacia: 'mysql', pgUrl, mysqlUrl: urlMy, confirmar: nombreMy, forzar: true, ...silencio, ...extra });
+  const vuelta = (pgUrl, extra = {}) => migrar({ desde: 'mysql', hacia: 'supabase', pgUrl, mysqlUrl: urlMy, confirmar: nombreDe(pgUrl), forzar: true, ...silencio, ...extra });
   async function conMy(fn) {
     const c = await mysql2.createConnection(urlMy);
     try { return await fn(c); } finally { await c.end(); }
@@ -229,6 +229,62 @@ describe('integración: migración completa', () => {
     expect(n).toBe(n0);
     expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual(['repuestos']);
     expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual(['repuestos']);
+  });
+
+  describe('guarda de fecha (--forzar) y huérfanos de auth.users', () => {
+    const movNuevo = (my, fecha) => my.query(
+      "INSERT INTO movimientos (id, equipo_id, tipo_movimiento, descripcion, usuario, fecha) SELECT ?, id, 'Modificación', 'nuevo', 'Guarda', ? FROM equipos LIMIT 1",
+      [randomUUID(), fecha]);
+    const cuentaMov = (my) => my.query("SELECT COUNT(*) AS n FROM movimientos WHERE usuario = 'Guarda'").then(([[r]]) => Number(r.n));
+
+    it('destino más nuevo que el origen: aborta sin tocar nada; con forzar procede', async () => {
+      await ida(PG_COPIA);
+      await conMy((my) => movNuevo(my, '2099-01-01 00:00:00.000'));
+      await expect(ida(PG_COPIA, { forzar: false })).rejects.toThrow(/más nuevos.*--forzar/);
+      expect(await conMy(cuentaMov)).toBe(1);
+      await ida(PG_COPIA, { forzar: true });
+      expect(await conMy(cuentaMov)).toBe(0);
+    });
+    it('destino más nuevo también aborta en sentido inverso (Postgres); procede con forzar', async () => {
+      const clon = await clonar();
+      await ida(PG_COPIA);
+      await consulta(clon, "INSERT INTO movimientos (id, equipo_id, tipo_movimiento, descripcion, usuario, fecha) SELECT gen_random_uuid(), id, 'Modificación', 'nuevo', 'Guarda', '2099-01-01T00:00:00Z' FROM equipos LIMIT 1");
+      await expect(vuelta(clon, { forzar: false })).rejects.toThrow(/más nuevos/);
+      expect((await consulta(clon, "SELECT count(*) AS n FROM movimientos WHERE usuario = 'Guarda'"))[0].n).toBe('1');
+      await vuelta(clon, { forzar: true });
+      expect((await consulta(clon, "SELECT count(*) AS n FROM movimientos WHERE usuario = 'Guarda'"))[0].n).toBe('0');
+    });
+    it('procede sin forzar cuando el origen es más nuevo o el destino está vacío; imprime host, base y conteos', async () => {
+      const clon = await clonar();
+      await ida(PG_COPIA);
+      await conMy((my) => movNuevo(my, '2099-01-01 00:00:00.000')); // MySQL (origen de la vuelta) más nuevo
+      const lineas = [];
+      await vuelta(clon, { forzar: false, log: (l) => lineas.push(l) });
+      const txt = lineas.join('\n');
+      expect(txt).toContain(`base ${nombreDe(clon)}`);
+      expect(txt).toMatch(/host 127\.0\.0\.1/);
+      expect(txt).toMatch(/equipos: \d+ fila\(s\) que se van a borrar/);
+      await conMy(async (my) => {
+        await my.query('SET FOREIGN_KEY_CHECKS = 0');
+        for (const t of ['sesiones', 'tokens_password', 'usuarios', 'equipos', 'movimientos', 'prestamos', 'solicitudes_cambio', 'feedback_desarrollador', 'repuestos']) await my.query(`DELETE FROM \`${t}\``);
+      });
+      await ida(PG_COPIA, { forzar: false }); // destino vacío
+      expect(dif(await verificar({ pgUrl: PG_COPIA, mysqlUrl: urlMy }))).toEqual([]);
+    });
+    it('vuelta: cuentas de auth.users sin user_roles quedan con encrypted_password NULL y se avisa por email', async () => {
+      const clon = await clonar();
+      await ida(PG_COPIA);
+      const [{ email }] = await consulta(clon, 'SELECT email FROM auth.users ORDER BY email LIMIT 1');
+      await conMy((my) => my.query('DELETE FROM usuarios WHERE email = ?', [email]));
+      const avisos = [];
+      const res = await vuelta(clon, { warn: (m) => avisos.push(m) });
+      expect(res.sinRolBloqueados).toEqual([email]);
+      expect(avisos.join('\n')).toContain(email);
+      const [a] = await consulta(clon, 'SELECT encrypted_password FROM auth.users WHERE email = $1', [email]);
+      expect(a.encrypted_password).toBeNull();
+      const [{ n }] = await consulta(clon, 'SELECT count(*) AS n FROM auth.users WHERE encrypted_password IS NULL');
+      expect(n).toBe('1'); // solo el huérfano
+    });
   });
 
   it('falla a mitad de la carga hacia MySQL: rollback, MySQL queda igual que antes', async () => {

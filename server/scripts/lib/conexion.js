@@ -33,6 +33,7 @@ export function parsearArgs(argv) {
     if (!a.startsWith('--')) throw new Error(`Argumento no reconocido: ${a}`);
     const eq = a.indexOf('=');
     if (eq > 0) out[a.slice(2, eq)] = a.slice(eq + 1);
+    else if (i + 1 >= argv.length || argv[i + 1].startsWith('--')) out[a.slice(2)] = true; // bandera sin valor (--forzar)
     else out[a.slice(2)] = argv[++i];
   }
   return out;
