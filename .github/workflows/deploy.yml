@@ -38,8 +38,8 @@ jobs:
         if: env.FTP_SERVER != ''
         run: npm run build
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BACKEND: propio
+          VITE_API_URL: https://api-inventario.chacalo.com.ar
 
       # El certificado TLS del FTP de Hostinger es *.hstgr.io (no la IP): apuntamos
       # hstgr.io a la IP del servidor para conectar por FTPS verificando el certificado.
