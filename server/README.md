@@ -48,13 +48,13 @@ Copiar `.env.example` a `.env` (o cargar las variables en hPanel). `npm start` f
 
 Credenciales, clave por clave y en este orden: variables de entorno del proceso, `.env` en la raíz de la app (junto a `package.json`) y `~/.stlukesit-backup.env` (formato `DB_HOST=`, `DB_PORT=`, `DB_USER=`, `DB_PASSWORD=`, `DB_NAME=`). Opcional: `BACKUP_DIR` para cambiar el destino y `BACKUP_METODO=node|mysqldump` para forzar el método (por defecto usa `mysqldump` si existe y, si falla o no está, un volcado en Node puro).
 
-Cron diario en Hostinger (hPanel > Avanzado > Cron Jobs, o el conector de Hostinger), 03:00:
+Cron diario en Hostinger (creado 2026-11-12 vía el conector; el servidor está en UTC, así que `0 6` = 03:00 de Argentina). Hostinger guarda las variables de la app en `hbuilds/config/.env`, fuera de la carpeta de la versión, por eso se cargan con `--env-file`:
 
 ```
-0 3 * * * /usr/bin/env node /home/u850855608/domains/api-inventario.chacalo.com.ar/hbuilds/current/nodejs/scripts/backup.js
+0 6 * * * /opt/alt/alt-nodejs22/root/usr/bin/node --env-file=/home/u850855608/domains/api-inventario.chacalo.com.ar/hbuilds/config/.env /home/u850855608/domains/api-inventario.chacalo.com.ar/hbuilds/current/nodejs/scripts/backup.js 2>&1
 ```
 
-La ruta de `node` puede ser otra (Hostinger instala varias versiones; si `/usr/bin/env node` no encuentra una 22.x, usar la ruta completa del binario). Revisar la salida del cron al día siguiente: una línea `backup OK: ...` con archivo, tamaño, tablas y método, o `backup FALLÓ: ...` (código de salida 1) con el motivo, sin contraseñas. Correrlo a mano con `npm run backup` desde el directorio de la app.
+`node` no está en el PATH del cron: usar la ruta completa. Hostinger guarda solo la salida de la última corrida y el comando tiene un máximo de 255 caracteres. Revisar la salida: una línea `backup OK: ...` con archivo, tamaño, tablas y método, o `backup FALLÓ: ...` (código de salida 1) con el motivo, sin contraseñas.
 
 Restaurar en una base **vacía** (la base destino sale de `DB_NAME`; `--confirmar` debe ser su nombre exacto):
 
