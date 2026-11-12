@@ -19,24 +19,25 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
+      FTP_BETA_USERNAME: ${{ secrets.FTP_BETA_USERNAME }}
     steps:
       - name: Checkout
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         uses: actions/checkout@v4
 
       - name: Instalar Node.js
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
       - name: Instalar dependencias
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         run: npm ci
 
       - name: Compilar proyecto (backend propio)
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         run: npm run build
         env:
           VITE_BACKEND: propio
@@ -45,11 +46,11 @@ jobs:
       # El certificado TLS del FTP de Hostinger es *.hstgr.io (no la IP): apuntamos
       # hstgr.io a la IP del servidor para conectar por FTPS verificando el certificado.
       - name: Resolver hstgr.io a la IP del FTP
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         run: echo "$FTP_SERVER hstgr.io" | sudo tee -a /etc/hosts
 
       - name: Publicar beta en Hostinger por FTPS
-        if: env.FTP_SERVER != ''
+        if: env.FTP_SERVER != '' && env.FTP_BETA_USERNAME != ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: hstgr.io

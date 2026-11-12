@@ -27,6 +27,7 @@ function ModalResetPassword({ id, nombre, email, actorNombre, onClose }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [listo, setListo] = useState(false)
+  const [mailError, setMailError] = useState('')
 
   async function handleGuardar() {
     if (!password || !confirmPassword) {
@@ -44,7 +45,8 @@ function ModalResetPassword({ id, nombre, email, actorNombre, onClose }) {
     setLoading(true)
     setError('')
     try {
-      await usuarios.restablecerPassword(id, password, { nombre, email }, actorNombre)
+      const r = await usuarios.restablecerPassword(id, password, { nombre, email }, actorNombre)
+      setMailError(r?.mailError || '')
       setLoading(false)
       setListo(true)
     } catch (e) {
@@ -82,6 +84,14 @@ function ModalResetPassword({ id, nombre, email, actorNombre, onClose }) {
             }}>
               Contraseña de {nombre || email} actualizada correctamente.
             </div>
+            {mailError && (
+              <div style={{
+                background: 'rgba(226,85,85,.1)', border: '1px solid rgba(226,85,85,.3)',
+                color: '#e25555', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '18px'
+              }}>
+                Contraseña restablecida, pero no se pudo enviar el aviso por mail: {mailError}
+              </div>
+            )}
             <button
               onClick={onClose}
               style={{ width: '100%', padding: '10px', background: '#c8a44a', border: 'none', borderRadius: '6px', color: '#1a1a0a', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}

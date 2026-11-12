@@ -66,17 +66,20 @@ function Usuarios({ currentUserEmail, currentUserNombre, isSuperAdmin }) {
       return
     }
 
+    let mailError
     try {
       if (usuarioEditando) {
         await usuariosApi.actualizar(usuarioEditando.id, payload, currentUserNombre)
       } else {
-        await usuariosApi.crear(payload, currentUserNombre)
+        // Con la API propia devuelve { mailError } si no salió la invitación (con Supabase, undefined).
+        mailError = (await usuariosApi.crear(payload, currentUserNombre))?.mailError
       }
     } catch (error) {
       showToast('Error: ' + error.message, 'error')
       return
     }
-    showToast(usuarioEditando ? 'Usuario actualizado' : 'Usuario creado correctamente')
+    if (mailError) showToast(`Usuario creado, pero no se pudo enviar el mail de invitación: ${mailError}`, 'error')
+    else showToast(usuarioEditando ? 'Usuario actualizado' : 'Usuario creado correctamente')
     setModalOpen(false)
     setUsuarioEditando(null)
     cargarUsuarios()
