@@ -38,3 +38,6 @@ export function parsearArgs(argv) {
   }
   return out;
 }
+
+// Una bandera booleana solo vale si viene sola (--forzar) o como --forzar=true / --forzar=1. Cualquier otra cosa es falso.
+export const bandera = (v) => v === true || v === 'true' || v === '1';

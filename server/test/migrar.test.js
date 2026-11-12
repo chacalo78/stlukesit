@@ -102,6 +102,7 @@ import pg from 'pg';
 import { afterAll, beforeAll } from 'vitest';
 import { crearDbDeTest, limpiar } from './helpers.js';
 import { migrar } from '../scripts/migrar.js';
+import { parsearArgs, bandera } from '../scripts/lib/conexion.js';
 import { verificar } from '../scripts/verificar.js';
 
 const PG_COPIA = process.env.TEST_PG_COPIA_URL || 'postgresql://stlukesit_pg:pg_local_pw@127.0.0.1:5432/stlukesit_pg_copia';
@@ -285,6 +286,68 @@ describe('integración: migración completa', () => {
       const [{ n }] = await consulta(clon, 'SELECT count(*) AS n FROM auth.users WHERE encrypted_password IS NULL');
       expect(n).toBe('1'); // solo el huérfano
     });
+  });
+
+  describe('guarda de fecha: casos adicionales, --simular y bloqueo de huérfanos', () => {
+    it('fechas iguales sin --forzar: procede (ambos sentidos)', async () => {
+      const clon = await clonar();
+      await conMy(async (my) => {
+        await my.query('SET FOREIGN_KEY_CHECKS = 0');
+        for (const t of ['sesiones', 'tokens_password', 'usuarios', 'equipos', 'movimientos', 'prestamos', 'solicitudes_cambio', 'feedback_desarrollador', 'repuestos']) await my.query(`DELETE FROM \`${t}\``);
+      });
+      await ida(PG_COPIA, { forzar: false });
+      await ida(PG_COPIA, { forzar: false }); // origen y destino con el mismo último movimiento
+      await vuelta(clon, { forzar: false }); // MySQL == clon
+      expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual([]);
+    });
+
+    it('--simular imprime destino, conteos y resultado de la guarda y no modifica nada (ambos sentidos)', async () => {
+      const clon = await clonar();
+      await ida(PG_COPIA);
+      await conMy((my) => my.query("INSERT INTO movimientos (id, equipo_id, tipo_movimiento, descripcion, usuario, fecha) SELECT ?, id, 'Modificación', 'sim', 'Sim', '2099-01-01 00:00:00.000' FROM equipos LIMIT 1", [randomUUID()]));
+      const lineas = [];
+      const r = await ida(PG_COPIA, { forzar: false, simular: true, log: (l) => lineas.push(l) });
+      expect(r.simulado).toBe(true);
+      const txt = lineas.join('\n');
+      expect(txt).toContain(`base ${nombreMy}`);
+      expect(txt).toMatch(/equipos: \d+ fila\(s\)/);
+      expect(txt).toContain('ABORTARÍA');
+      expect(await conMy((my) => my.query("SELECT COUNT(*) AS n FROM movimientos WHERE usuario = 'Sim'").then(([[x]]) => Number(x.n)))).toBe(1);
+      const l2 = [];
+      await vuelta(clon, { forzar: false, simular: true, log: (l) => l2.push(l) });
+      expect(l2.join('\n')).toContain('Guarda de fecha: OK');
+      expect(dif(await verificar({ pgUrl: clon, mysqlUrl: urlMy }))).toEqual(['movimientos']); // clon intacto
+      await ida(PG_COPIA); // restaura MySQL
+    });
+
+    it('huérfanos: además de anular la clave quedan con banned_until y sin sesiones', async () => {
+      const clon = await clonar();
+      await consulta(clon, 'ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS banned_until timestamptz');
+      await consulta(clon, 'CREATE TABLE IF NOT EXISTS auth.sessions (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL)');
+      await ida(PG_COPIA);
+      const us = await consulta(clon, 'SELECT id, email FROM auth.users ORDER BY email LIMIT 2');
+      for (const u of us) await consulta(clon, 'INSERT INTO auth.sessions (user_id) VALUES ($1)', [u.id]);
+      await conMy((my) => my.query('DELETE FROM usuarios WHERE email = ?', [us[0].email]));
+      await vuelta(clon);
+      const [h] = await consulta(clon, "SELECT encrypted_password, banned_until > now() + interval '50 years' AS largo FROM auth.users WHERE email = $1", [us[0].email]);
+      expect(h.encrypted_password).toBeNull();
+      expect(h.largo).toBe(true);
+      expect((await consulta(clon, 'SELECT count(*) AS n FROM auth.sessions WHERE user_id = $1', [us[0].id]))[0].n).toBe('0');
+      expect((await consulta(clon, 'SELECT count(*) AS n FROM auth.sessions WHERE user_id = $1', [us[1].id]))[0].n).toBe('1');
+      const [o] = await consulta(clon, 'SELECT banned_until FROM auth.users WHERE email = $1', [us[1].email]);
+      expect(o.banned_until).toBeNull();
+    });
+  });
+
+  it('parsearArgs/bandera: --forzar solo vale sola, =true o =1', () => {
+    expect(bandera(parsearArgs(['--forzar']).forzar)).toBe(true);
+    expect(bandera(parsearArgs(['--forzar=true']).forzar)).toBe(true);
+    expect(bandera(parsearArgs(['--forzar=1']).forzar)).toBe(true);
+    for (const v of ['false', 'no', '0', '']) expect(bandera(parsearArgs([`--forzar=${v}`]).forzar)).toBe(false);
+    expect(bandera(parsearArgs([]).forzar)).toBe(false);
+    const a = parsearArgs(['--forzar', '--confirmar=x']);
+    expect(a.confirmar).toBe('x');
+    expect(a.forzar).toBe(true);
   });
 
   it('falla a mitad de la carga hacia MySQL: rollback, MySQL queda igual que antes', async () => {

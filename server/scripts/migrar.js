@@ -4,7 +4,7 @@
 // URLs también por env PG_URL / MYSQL_URL. Idempotente: en una transacción sobre el destino vacía las
 // tablas de datos y recarga todo. No hace DROP/TRUNCATE. `aprobaciones` no se migra.
 import { fileURLToPath } from 'node:url';
-import { abrirPg, abrirMysql, resolverUrls, parsearArgs } from './lib/conexion.js';
+import { abrirPg, abrirMysql, resolverUrls, parsearArgs, bandera } from './lib/conexion.js';
 import { validarEsquema } from './lib/esquema.js';
 import { COLUMNAS, TABLAS_DATOS, aMysql, aPostgres } from './lib/transformar.js';
 
@@ -48,20 +48,27 @@ const contarMy = async (my) => {
 
 // Antes de borrar el destino: muestra a dónde se escribe y qué hay, y aborta si el destino tiene movimientos más
 // nuevos que el origen (migrar "hacia atrás en el tiempo" pisaría datos recientes) salvo que se pase --forzar.
-function resguardoDestino({ destinoDesc, conteos, maxOrigen, maxDestino, forzar, log }) {
+function resguardoDestino({ destinoDesc, conteos, maxOrigen, maxDestino, forzar, simular, log }) {
   log(`Destino: ${destinoDesc}`);
   for (const [t, n] of Object.entries(conteos)) log(`  ${t}: ${n} fila(s) que se van a borrar`);
   log(`Último movimiento: origen ${maxOrigen ?? '(vacío)'} / destino ${maxDestino ?? '(vacío)'}`);
-  if (maxDestino && (!maxOrigen || maxDestino > maxOrigen) && !forzar) {
+  const masNuevo = !!maxDestino && (!maxOrigen || maxDestino > maxOrigen);
+  if (simular) {
+    log(masNuevo && !forzar
+      ? 'Guarda de fecha: ABORTARÍA (el destino tiene movimientos más nuevos que el origen; haría falta --forzar).'
+      : 'Guarda de fecha: OK, la migración real procedería.');
+    return;
+  }
+  if (masNuevo && !forzar) {
     throw new Error(`El destino tiene movimientos más nuevos (${maxDestino}) que el origen (${maxOrigen ?? 'vacío'}). `
       + 'Migrar ahora pisaría datos recientes. Si es lo que querés, repetí con --forzar. No se modificó nada.');
   }
-  if (maxDestino && (!maxOrigen || maxDestino > maxOrigen)) log('ADVERTENCIA: --forzar activo, se pisan movimientos más nuevos del destino.');
+  if (masNuevo) log('ADVERTENCIA: --forzar activo, se pisan movimientos más nuevos del destino.');
 }
 
 const hostDe = (url) => { try { return new URL(url).host; } catch { return '(desconocido)'; } };
 
-async function supabaseAMysql({ pgc, my, log, warn, forzar, urlDestino, nombreDestino }) {
+async function supabaseAMysql({ pgc, my, log, warn, forzar, simular, urlDestino, nombreDestino }) {
   const datos = await leerPg(pgc);
 
   const emailsRoles = new Set(datos.usuarios.map((u) => u.email.toLowerCase()));
@@ -76,8 +83,9 @@ async function supabaseAMysql({ pgc, my, log, warn, forzar, urlDestino, nombreDe
 
   resguardoDestino({
     destinoDesc: `MySQL host ${hostDe(urlDestino)}, base ${nombreDestino}`,
-    conteos: await contarMy(my), maxOrigen: await maxPg(pgc), maxDestino: await maxMy(my), forzar, log,
+    conteos: await contarMy(my), maxOrigen: await maxPg(pgc), maxDestino: await maxMy(my), forzar, simular, log,
   });
+  if (simular) { log('Simulación: no se modificó nada.'); return { simulado: true }; }
 
   try {
     await my.beginTransaction();
@@ -120,7 +128,7 @@ async function contarAprobaciones(pgc) {
   return Number((await pgc.query('SELECT count(*) AS n FROM public.aprobaciones')).rows[0].n);
 }
 
-async function mysqlASupabase({ pgc, my, log, warn, forzar, urlDestino, nombreDestino }) {
+async function mysqlASupabase({ pgc, my, log, warn, forzar, simular, urlDestino, nombreDestino }) {
   const crudo = {};
   await my.query('START TRANSACTION WITH CONSISTENT SNAPSHOT');
   try {
@@ -136,8 +144,9 @@ async function mysqlASupabase({ pgc, my, log, warn, forzar, urlDestino, nombreDe
 
   resguardoDestino({
     destinoDesc: `Postgres host ${hostDe(urlDestino)}, base ${nombreDestino}`,
-    conteos: await contarPg(pgc), maxOrigen: await maxMy(my), maxDestino: await maxPg(pgc), forzar, log,
+    conteos: await contarPg(pgc), maxOrigen: await maxMy(my), maxDestino: await maxPg(pgc), forzar, simular, log,
   });
+  if (simular) { log('Simulación: no se modificó nada.'); return { simulado: true }; }
 
   let actualizadas = 0;
   let sinAuth = [];
@@ -167,13 +176,21 @@ async function mysqlASupabase({ pgc, my, log, warn, forzar, urlDestino, nombreDe
     }
     // Usuarios borrados en MySQL tras el corte: su cuenta de auth.users sigue viva pero sin fila en user_roles.
     // Se les anula la contraseña para que no entren a la app vieja.
+    // Además se bloquea el acceso como toggle-user-access (ban largo) y se cierran sus sesiones: sin eso podrían
+    // recuperar la clave por mail o seguir con un refresh token vivo.
+    const tiene = async (sql) => (await pgc.query(sql)).rows.length > 0;
+    const hayBan = await tiene("SELECT 1 FROM information_schema.columns WHERE table_schema = 'auth' AND table_name = 'users' AND column_name = 'banned_until'");
+    const haySesiones = await tiene("SELECT 1 FROM information_schema.tables WHERE table_schema = 'auth' AND table_name = 'sessions'");
     const huerfanos = await pgc.query(
-      `UPDATE auth.users SET encrypted_password = NULL
-        WHERE encrypted_password IS NOT NULL
-          AND lower(email) NOT IN (SELECT lower(email) FROM user_roles)
-        RETURNING email`,
+      `UPDATE auth.users u SET encrypted_password = NULL${hayBan ? ", banned_until = now() + interval '876000 hours'" : ''}
+        WHERE NOT EXISTS (SELECT 1 FROM user_roles r WHERE lower(r.email) = lower(u.email))
+          AND (u.encrypted_password IS NOT NULL${hayBan ? ' OR u.banned_until IS NULL' : ''})
+        RETURNING u.id, u.email`,
     );
     sinRolBloqueados = huerfanos.rows.map((r) => r.email);
+    if (haySesiones && huerfanos.rows.length) {
+      await pgc.query('DELETE FROM auth.sessions WHERE user_id = ANY($1::uuid[])', [huerfanos.rows.map((r) => r.id)]);
+    }
     if ((await contarAprobaciones(pgc)) !== aprob) throw new Error('aprobaciones cambió durante la migración; se revierte todo.');
     await pgc.query('COMMIT');
   } catch (err) {
@@ -182,12 +199,12 @@ async function mysqlASupabase({ pgc, my, log, warn, forzar, urlDestino, nombreDe
   }
   log(`auth.users: ${actualizadas} contraseña(s) actualizada(s)`);
   if (sinAuth.length) warn(`ADVERTENCIA: ${sinAuth.length} usuario(s) sin cuenta en auth.users (no podrán entrar a Supabase): ${sinAuth.join(', ')}`);
-  if (sinRolBloqueados.length) warn(`ADVERTENCIA: ${sinRolBloqueados.length} cuenta(s) de auth.users sin fila en user_roles (borradas en MySQL); se les anuló la contraseña y no pueden entrar a la app vieja: ${sinRolBloqueados.join(', ')}`);
+  if (sinRolBloqueados.length) warn(`ADVERTENCIA: ${sinRolBloqueados.length} cuenta(s) de auth.users sin fila en user_roles (borradas en MySQL); se les anuló la contraseña, se los bloqueó (banned_until) y se cerraron sus sesiones: ${sinRolBloqueados.join(', ')}`);
   return { advertencias: { sinAuth: sinAuth.length, sinRolBloqueados: sinRolBloqueados.length }, passwordsActualizadas: actualizadas, sinRolBloqueados };
 }
 
 // `confirmar` es obligatorio: debe ser el nombre exacto de la base de destino (se lee de la conexión).
-export async function migrar({ desde, hacia, pgUrl, mysqlUrl, confirmar, forzar = false, log = console.log, warn = console.warn }) {
+export async function migrar({ desde, hacia, pgUrl, mysqlUrl, confirmar, forzar = false, simular = false, log = console.log, warn = console.warn }) {
   if (!pgUrl || !mysqlUrl) throw new Error('Faltan las URLs: use --pg-url y --mysql-url (o PG_URL y MYSQL_URL).');
   const ida = desde === 'supabase' && hacia === 'mysql';
   const vuelta = desde === 'mysql' && hacia === 'supabase';
@@ -206,7 +223,7 @@ export async function migrar({ desde, hacia, pgUrl, mysqlUrl, confirmar, forzar 
       throw new Error(`La base de destino es "${destino}" y no coincide con --confirmar "${confirmar}". No se modificó nada.`);
     }
     return await (ida ? supabaseAMysql : mysqlASupabase)({
-      pgc, my, log, warn, forzar: !!forzar, urlDestino: ida ? mysqlUrl : pgUrl, nombreDestino: destino,
+      pgc, my, log, warn, forzar: !!forzar, simular: !!simular, urlDestino: ida ? mysqlUrl : pgUrl, nombreDestino: destino,
     });
   } finally {
     await my?.end().catch(() => {});
@@ -220,7 +237,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const a = parsearArgs(process.argv.slice(2));
     const urls = resolverUrls({ pgUrl: a['pg-url'], mysqlUrl: a['mysql-url'] });
-    await migrar({ desde: a.desde, hacia: a.hacia, confirmar: a.confirmar, forzar: !!a.forzar, ...urls });
+    await migrar({ desde: a.desde, hacia: a.hacia, confirmar: a.confirmar, forzar: bandera(a.forzar), simular: bandera(a.simular), ...urls });
     console.log('Migración completada. Ejecute verificar.js para comparar ambos lados.');
   } catch (err) {
     console.error(`ERROR: ${err.message} (si el destino llegó a modificarse, la transacción se revirtió)`);

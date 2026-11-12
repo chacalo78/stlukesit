@@ -50,13 +50,14 @@ Runbook del día del corte (migración final Supabase a MySQL). Antes, ensayar t
 
 **En la ventana**
 5. Congelar la app vieja (nadie escribe en Supabase).
-6. `node scripts/migrar.js --desde=supabase --hacia=mysql --confirmar=NOMBRE_BASE_DESTINO`. Antes de borrar imprime host, base y filas por tabla del destino; leerlo y confirmar que es producción.
+6. **Simulacro**: `node scripts/migrar.js --desde=supabase --hacia=mysql --confirmar=NOMBRE_BASE_DESTINO --simular`. Imprime host, base y filas por tabla del destino y el resultado de la guarda de fecha, y termina sin modificar nada. Leerlo y confirmar que es producción y que la guarda dice OK.
+6b. Correr lo mismo sin `--simular`. La salida real vuelve a imprimir el resumen pero no se detiene: la única barrera es `--confirmar`, por eso el paso 6 va primero.
 7. **Guarda `--forzar`**: si el destino tiene un movimiento más nuevo que el origen, el script aborta sin tocar nada (migrar hacia atrás en el tiempo pisaría datos recientes). Solo repetir con `--forzar` si se revisó y se acepta perder esos movimientos.
 8. `node scripts/verificar.js` debe salir sin diferencias. Después apuntar el frontend a la API nueva.
 
 **Rollback (MySQL a Supabase)**
 - `node scripts/migrar.js --desde=mysql --hacia=supabase --confirmar=NOMBRE_BASE_SUPABASE`. Aplica la misma guarda de fecha y `--forzar`. No migra `aprobaciones` (aborta si tiene filas).
-- Los usuarios borrados en MySQL después del corte conservan su cuenta en `auth.users` de Supabase pero sin fila en `user_roles`. Al volver, el script les pone `encrypted_password = NULL` (no pueden entrar a la app vieja) y lista sus emails en una advertencia. Solo afecta a cuentas sin rol y solo en este sentido. Revisar la lista y, si alguno debe volver a entrar, darle de alta en `user_roles` y resetear su clave.
+- Los usuarios borrados en MySQL después del corte conservan su cuenta en `auth.users` de Supabase pero sin fila en `user_roles`. Al volver, el script les pone `encrypted_password = NULL` (no pueden entrar a la app vieja: además se les pone `banned_until` a 876000 h, igual que `toggle-user-access`, y se borran sus filas de `auth.sessions`) y lista sus emails en una advertencia. Solo afecta a cuentas sin rol y solo en este sentido. Revisar la lista y, si alguno debe volver a entrar, darle de alta en `user_roles`, quitar su `banned_until` y resetear su clave.
 
 ## Producción
 
